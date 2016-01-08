@@ -1,0 +1,5 @@
+{
+	"ImportPath": "github.com/intelsdi-x/snap-plugin-collector-processes",
+	"GoVersion": "go1.5",
+	"Deps": []
+}
