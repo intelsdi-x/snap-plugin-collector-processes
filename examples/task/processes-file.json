@@ -1,0 +1,26 @@
+{
+    "version": 1,
+    "schedule": {
+        "type": "simple",
+        "interval": "1s"
+    },
+    "workflow": {
+        "collect": {
+            "metrics": {
+                "/intel/procfs/processes/*": {},
+                "/intel/procfs/processes/running": {},
+                "/intel/procfs/processes/sleeping": {},
+                "/intel/procfs/processes/zombie": {}
+            },
+            "publish": [
+                {
+                    "plugin_name": "file",
+                    "config": {
+                        "file": "/tmp/published_processes"
+                    }
+                }
+            ],
+            "config": null
+        }
+    }
+}
