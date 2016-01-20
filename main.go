@@ -31,7 +31,7 @@ import (
 func main() {
 	procPlg := processes.New()
 	if procPlg == nil {
-		panic("Failed to initialize plugin!\n")
+		panic("Failed to initialize plugin\n")
 	}
 
 	plugin.Start(

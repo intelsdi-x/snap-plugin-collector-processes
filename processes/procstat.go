@@ -19,7 +19,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package procstat
+package processes
 
 import (
 	"io/ioutil"
@@ -29,14 +29,25 @@ import (
 )
 
 const (
-	procPath   = "/proc"
 	procStat   = "stat"
 	procStatus = "status"
 	procCmd    = "cmdline"
 	procIO     = "io"
 )
 
+type metricCollector interface {
+	GetStats() (map[string][]Proc, error)
+}
+
+// for mocking
+type procStatsCollector struct {
+}
+
 var (
+	// procPath is declared as a variable for mocking in unit tests
+	procPath = "/proc"
+
+	// States contains possible states of processes
 	States = map[string]string{
 		"R": "running",
 		"S": "sleeping",
@@ -51,7 +62,8 @@ var (
 	}
 )
 
-type proc struct {
+// Proc holds processes statistics
+type Proc struct {
 	Pid     int
 	State   string
 	CmdLine string
@@ -61,12 +73,13 @@ type proc struct {
 	VmCode  uint64
 }
 
-func GetStats() (map[string][]proc, error) {
+// GetStats returns processess statistics
+func (psc *procStatsCollector) GetStats() (map[string][]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
 	if err != nil {
 		return nil, err
 	}
-	procs := map[string][]proc{}
+	procs := map[string][]Proc{}
 	for _, file := range files {
 		// process only PID sub dirs
 		if pid, err := strconv.Atoi(file.Name()); err == nil {
@@ -104,7 +117,7 @@ func GetStats() (map[string][]proc, error) {
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024
 			}
 			// TODO - if ( report_ctx_switch ) ps_read_tasks_status(pid, ps)
-			pc := proc{
+			pc := Proc{
 				Pid:     pid,
 				State:   strings.Fields(string(procStat))[2],
 				Stat:    strings.Fields(string(procStat)),
@@ -123,6 +136,7 @@ func GetStats() (map[string][]proc, error) {
 	return procs, nil
 }
 
+// readToMap retrives statistics from file specified by filename and returns its (name, value) as a map
 func read2Map(fileName string) (map[string]uint64, error) {
 	stats := map[string]uint64{}
 	status, err := ioutil.ReadFile(fileName)
@@ -146,6 +160,7 @@ func read2Map(fileName string) (map[string]uint64, error) {
 		}
 
 		value, err := strconv.ParseUint(data[1], 10, 64)
+
 		if err != nil {
 			continue
 		}

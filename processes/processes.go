@@ -29,40 +29,43 @@ import (
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-
-	"github.com/intelsdi-x/snap-plugin-collector-processes/procstat"
 )
 
 const (
-	//Plugin name
+	//PLUGIN name
 	PLUGIN = "processes"
-	//Vendor name
+	//VENDOR name
 	VENDOR = "intel"
 	// FS is proc filesystem
 	FS = "procfs"
-	//Version of plugin
+	//VERSION of plugin
 	VERSION = 1
 )
 
-type procCollector struct {
+// procPlugin holds host name and reference to metricCollector which has method of GetStats()
+type procPlugin struct {
 	host string
+	mc   metricCollector
 }
 
-func New() *procCollector {
+// New returns instance of processes plugin
+func New() *procPlugin {
 	host, err := os.Hostname()
 	if err != nil {
 		host = "localhost"
 	}
-	return &procCollector{host: host}
+
+	return &procPlugin{host: host, mc: &procStatsCollector{}}
 }
 
-func (coll *procCollector) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
+// GetMetricTypes returns list of available metrics
+func (procPlg *procPlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
 	metricTypes := []plugin.PluginMetricType{
 		plugin.PluginMetricType{
 			Namespace_: []string{VENDOR, FS, PLUGIN, "*"},
 		},
 	}
-	for _, state := range procstat.States {
+	for _, state := range States {
 		metricType := plugin.PluginMetricType{
 			Namespace_: []string{VENDOR, FS, PLUGIN, state},
 		}
@@ -71,23 +74,30 @@ func (coll *procCollector) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.P
 	return metricTypes, nil
 }
 
-func (coll *procCollector) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+// GetConfigPolicy returns config policy
+func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
+	return cpolicy.New(), nil
+}
+
+// CollectMetrics retrieves values for given metrics types
+func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
 	metrics := []plugin.PluginMetricType{}
 	stateCount := map[string]int{}
 
-	stats, err := procstat.GetStats()
+	// init stateCount map with keys from States
+	for _, state := range States {
+		stateCount[state] = 0
+	}
+
+	stats, err := procPlg.mc.GetStats()
+
 	if err != nil {
 		return nil, err
 	}
 	for _, instances := range stats {
 		for _, instance := range instances {
-			stateName := procstat.States[instance.State]
-			if count, ok := stateCount[stateName]; ok {
-				stateCount[stateName] = count + 1
-			} else {
-				stateCount[stateName] = 1
-			}
-
+			stateName := States[instance.State]
+			stateCount[stateName]++
 		}
 	}
 
@@ -128,6 +138,8 @@ func (coll *procCollector) CollectMetrics(metricTypes []plugin.PluginMetricType)
 
 					stack1, _ := strconv.ParseUint(string(instance.Stat[27]), 10, 64)
 					stack2, _ := strconv.ParseUint(string(instance.Stat[28]), 10, 64)
+
+					// to avoid overload
 					if stack1 > stack2 {
 						procMetrics["ps_stacksize"] += stack1 - stack2
 					} else {
@@ -157,7 +169,7 @@ func (coll *procCollector) CollectMetrics(metricTypes []plugin.PluginMetricType)
 						Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
 						Data_:      val,
 						Timestamp_: time.Now(),
-						Source_:    coll.host,
+						Source_:    procPlg.host,
 					}
 					metrics = append(metrics, metric)
 				}
@@ -168,14 +180,13 @@ func (coll *procCollector) CollectMetrics(metricTypes []plugin.PluginMetricType)
 				metric := plugin.PluginMetricType{
 					Namespace_: ns,
 					Data_:      val,
+					Timestamp_: time.Now(),
+					Source_:    procPlg.host,
 				}
 				metrics = append(metrics, metric)
 			}
 		}
+
 	}
 	return metrics, nil
-}
-
-func (coll *procCollector) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	return cpolicy.New(), nil
 }
