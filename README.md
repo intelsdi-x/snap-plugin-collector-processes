@@ -77,17 +77,25 @@ Example task manifest to use processes plugin:
     "version": 1,
     "schedule": {
         "type": "simple",
-        "interval": "5s"
+        "interval": "1s"
     },
     "workflow": {
         "collect": {
             "metrics": {
-                "/intel/linux/filesystem/sys_fs_cgroup/inodes_used": {}
-           },
-            "config": {
+                "/intel/procfs/processes/*": {},
+                "/intel/procfs/processes/running": {},
+                "/intel/procfs/processes/sleeping": {},
+                "/intel/procfs/processes/zombie": {}
             },
-            "process": null,
-            "publish": null
+            "publish": [
+                {
+                    "plugin_name": "file",
+                    "config": {
+                        "file": "/tmp/published_processes"
+                    }
+                }
+            ],
+            "config": null
         }
     }
 }
@@ -112,5 +120,6 @@ There's more than one way to give back, from examples to blogs to code updates. 
 ## Acknowledgements
 
 * Author: [Marcin Krolik](https://github.com/marcin-krolik)
+* Co-author: [Izabella Raulin](https://github.com/IzabellaRaulin)
 
 And **thank you!** Your contribution, through code and participation, is incredibly important to us.
