@@ -55,20 +55,20 @@ Namespace | Data Type | Description (optional)
 /intel/procfs/processes/wakekill | | Number of processes in state wakekill
 /intel/procfs/processes/waking | | Number of processes in state waking
 /intel/procfs/processes/parked | | Number of processes in state parked
-/intel/procfs/processes/\<proces_name\>/ps_vm | |
-/intel/procfs/processes/\<proces_name\>/ps_rss | |
-/intel/procfs/processes/\<proces_name\>/ps_data | |
-/intel/procfs/processes/\<proces_name\>/ps_code | |
-/intel/procfs/processes/\<proces_name\>/ps_stacksize | |
-/intel/procfs/processes/\<proces_name\>/ps_cputime_user | |
-/intel/procfs/processes/\<proces_name\>/ps_cputime_system | |
-/intel/procfs/processes/\<proces_name\>/ps_pagefaults_min | |
-/intel/procfs/processes/\<proces_name\>/ps_pagefaults_maj | |
-/intel/procfs/processes/\<proces_name\>/ps_disk_ops_syscr | |
-/intel/procfs/processes/\<proces_name\>/ps_disk_ops_syscw | |
-/intel/procfs/processes/\<proces_name\>/ps_disk_octets_rchar | |
-/intel/procfs/processes/\<proces_name\>/ps_disk_octets_wchar | |
-/intel/procfs/processes/\<proces_name\>/ps_count | |
+/intel/procfs/processes/\<proces_name\>/ps_vm | | Virtual memory size in bytes 
+/intel/procfs/processes/\<proces_name\>/ps_rss | | Resident Set Size: number of pages the process has in real memory
+/intel/procfs/processes/\<proces_name\>/ps_data | | Size of data segments
+/intel/procfs/processes/\<proces_name\>/ps_code | | Size of text segments
+/intel/procfs/processes/\<proces_name\>/ps_stacksize | | Stack size
+/intel/procfs/processes/\<proces_name\>/ps_cputime_user | | Amount of time that this process has been scheduled in user mode
+/intel/procfs/processes/\<proces_name\>/ps_cputime_system | | Amount of time that this process has been scheduled in kernel mode
+/intel/procfs/processes/\<proces_name\>/ps_pagefaults_min | | The number of minor faults the process has made
+/intel/procfs/processes/\<proces_name\>/ps_pagefaults_maj | | The number of major faults the process has made
+/intel/procfs/processes/\<proces_name\>/ps_disk_ops_syscr | | Attempt to count the number of read I/O operations
+/intel/procfs/processes/\<proces_name\>/ps_disk_ops_syscw | | Attempt to count the number of write I/O operations
+/intel/procfs/processes/\<proces_name\>/ps_disk_octets_rchar | | The number of bytes which this task has caused to be read from storage
+/intel/procfs/processes/\<proces_name\>/ps_disk_octets_wchar | | The number of bytes which this task has caused, or shall cause to be written to disk
+/intel/procfs/processes/\<proces_name\>/ps_count | | Number of process instances
 
 ### Examples
 Example task manifest to use processes plugin:
@@ -104,7 +104,10 @@ Example task manifest to use processes plugin:
 
 
 ### Roadmap
-There isn't a current roadmap for this plugin, but it is in active development. As we launch this plugin, we do not have any outstanding requirements for the next release.
+
+- gather task status `"/proc/<pid>/task"`
+
+If you have a feature request, please add it as an [issue](https://github.com/intelsdi-x/snap-plugin-publisher-kairosdb/issues/new) and/or submit a [pull request](https://github.com/intelsdi-x/snap-plugin-publisher-kairosdb/pulls).
 
 ## Community Support
 This repository is one of **many** plugins in **snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support)

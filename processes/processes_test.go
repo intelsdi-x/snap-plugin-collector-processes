@@ -136,8 +136,7 @@ func TestGetMetricTypes(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(results, ShouldNotBeEmpty)
 
-		// 11 metrics exposed (/intel/procfs/processes/* and 10 constant metric like running, sleeping, waiting, zombie, etc.)
-		So(len(results), ShouldEqual, 11)
+		So(len(results), ShouldEqual, States.Size()+len(metricNames))
 	})
 }
 
@@ -195,15 +194,15 @@ func TestCollectMetrics(t *testing.T) {
 				}
 			})
 
-			Convey("when names of collect metrics include asterisk", func() {
-				mockMtsWithAsterisk := append(mockMts, plugin.PluginMetricType{Namespace_: []string{"intel", "procfs", "processes", "*"}})
-
-				results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
-
-				So(err, ShouldBeNil)
-				// 14 dynamic metrics exposed by process + 10 status metrics defined in mockMts
-				So(len(results), ShouldEqual, 14+len(mockMts))
-			})
+			//Convey("when names of collect metrics include asterisk", func() {
+			//	mockMtsWithAsterisk := append(mockMts, plugin.PluginMetricType{Namespace_: []string{"intel", "procfs", "processes", "*"}})
+			//
+			//	results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
+			//
+			//	So(err, ShouldBeNil)
+			//	// 14 dynamic metrics exposed by process + 10 status metrics defined in mockMts
+			//	So(len(results), ShouldEqual, 14+len(mockMts))
+			//})
 
 			Convey("when name of collect metric is invalid", func() {
 				results, err := procPlugin.CollectMetrics([]plugin.PluginMetricType{

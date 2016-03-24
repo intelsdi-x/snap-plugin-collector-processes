@@ -26,6 +26,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/intelsdi-x/snap-plugin-utilities/str"
 )
 
 const (
@@ -35,20 +37,12 @@ const (
 	procIO     = "io"
 )
 
-type metricCollector interface {
-	GetStats() (map[string][]Proc, error)
-}
-
-// for mocking
-type procStatsCollector struct {
-}
-
 var (
 	// procPath is declared as a variable for mocking in unit tests
 	procPath = "/proc"
 
 	// States contains possible states of processes
-	States = map[string]string{
+	States = str.StringMap{
 		"R": "running",
 		"S": "sleeping",
 		"D": "waiting",
@@ -73,7 +67,7 @@ type Proc struct {
 	VmCode  uint64
 }
 
-// GetStats returns processess statistics
+// GetStats returns processes statistics
 func (psc *procStatsCollector) GetStats() (map[string][]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
 	if err != nil {
@@ -116,7 +110,7 @@ func (psc *procStatsCollector) GetStats() (map[string][]Proc, error) {
 				vmData = pStatus["VmData"] * 1024
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024
 			}
-			// TODO - if ( report_ctx_switch ) ps_read_tasks_status(pid, ps)
+			// TODO: gather task status data /proc/<pid>/task
 			pc := Proc{
 				Pid:     pid,
 				State:   strings.Fields(string(procStat))[2],
@@ -169,3 +163,10 @@ func read2Map(fileName string) (map[string]uint64, error) {
 	}
 	return stats, nil
 }
+
+type metricCollector interface {
+	GetStats() (map[string][]Proc, error)
+}
+
+// for mocking
+type procStatsCollector struct{}
