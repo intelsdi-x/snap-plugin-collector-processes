@@ -180,13 +180,13 @@ func TestCollectMetrics(t *testing.T) {
 
 				results, err := procPlugin.CollectMetrics([]plugin.PluginMetricType{
 					plugin.PluginMetricType{
-						Namespace_: []string{"intel", "procfs", "processes", "*"},
+						Namespace_: []string{"intel", "procfs", "processes", "*", "ps_count"},
 					},
 				})
 
 				So(err, ShouldBeNil)
-				// 14 metrics exposed by process
-				So(len(results), ShouldEqual, 14)
+				// 1 metric exposed by process
+				So(len(results), ShouldEqual, 1)
 
 				for _, r := range results {
 					ns := r.Namespace()
@@ -194,15 +194,15 @@ func TestCollectMetrics(t *testing.T) {
 				}
 			})
 
-			//Convey("when names of collect metrics include asterisk", func() {
-			//	mockMtsWithAsterisk := append(mockMts, plugin.PluginMetricType{Namespace_: []string{"intel", "procfs", "processes", "*"}})
-			//
-			//	results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
-			//
-			//	So(err, ShouldBeNil)
-			//	// 14 dynamic metrics exposed by process + 10 status metrics defined in mockMts
-			//	So(len(results), ShouldEqual, 14+len(mockMts))
-			//})
+			Convey("when names of collect metrics include asterisk", func() {
+				mockMtsWithAsterisk := append(mockMts, plugin.PluginMetricType{Namespace_: []string{"intel", "procfs", "processes", "*", "ps_count"}})
+
+				results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
+
+				So(err, ShouldBeNil)
+				// 14 dynamic metrics exposed by process + 10 status metrics defined in mockMts
+				So(len(results), ShouldEqual, 11)
+			})
 
 			Convey("when name of collect metric is invalid", func() {
 				results, err := procPlugin.CollectMetrics([]plugin.PluginMetricType{

@@ -133,13 +133,15 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 			for procName, instances := range stats {
 				procMetrics := setProcMetrics(instances)
 				for procMet, val := range procMetrics {
-					metric := plugin.PluginMetricType{
-						Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
-						Data_:      val,
-						Timestamp_: time.Now(),
-						Source_:    procPlg.host,
+					if procMet == ns[4] {
+						metric := plugin.PluginMetricType{
+							Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
+							Data_:      val,
+							Timestamp_: time.Now(),
+							Source_:    procPlg.host,
+						}
+						metrics = append(metrics, metric)
 					}
-					metrics = append(metrics, metric)
 				}
 			}
 		} else if str.Contains(States.Values(), ns[3]) {
@@ -160,14 +162,14 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 				return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at 5, is %d", len(ns)))
 			}
 			procName := ns[3]
-			mettricName := ns[4]
+			metricName := ns[4]
 			instances, found := stats[procName]
 			if !found {
 				return nil, serror.New(fmt.Errorf("Process name {%s} not found!", procName))
 			}
 			procMetrics := setProcMetrics(instances)
 			for procMet, val := range procMetrics {
-				if mettricName == procMet {
+				if metricName == procMet {
 					metric := plugin.PluginMetricType{
 						Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
 						Data_:      val,
