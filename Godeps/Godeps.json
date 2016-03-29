@@ -1,6 +1,75 @@
 {
 	"ImportPath": "github.com/intelsdi-x/snap-plugin-collector-processes",
 	"GoVersion": "go1.5",
+	"GodepVersion": "v60",
 	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0",
+			"Rev": "4b6ea7319e214d98c938f12692336f7ca9348d6b"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/control/plugin",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/control/plugin/cpolicy",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/control/plugin/encoding",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/control/plugin/encrypter",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/core",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/core/cdata",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/core/ctypes",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/core/serror",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/pkg/ctree",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/pkg/schedule",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap/scheduler/wmap",
+			"Comment": "v0.12.0-beta",
+			"Rev": "e7bc051a9cd62781780fb090940a37f73d942c04"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "320cb01ddbbf0473674c2585f9b6e245721de355"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "a83829b6f1293c91addabc89d0571c246397bbf4"
+		}
 	]
 }
