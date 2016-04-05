@@ -7,10 +7,11 @@
     "workflow": {
         "collect": {
             "metrics": {
-                "/intel/procfs/processes/*": {},
+                "/intel/procfs/processes/*/ps_disk_ops_syscr": {},
+                "/intel/procfs/processes/*/ps_disk_ops_syscw": {},
                 "/intel/procfs/processes/running": {},
-                "/intel/procfs/processes/sleeping": {},
-                "/intel/procfs/processes/zombie": {}
+                "/intel/procfs/processes/stopped": {},
+                "/intel/procfs/processes/waiting": {}
             },
             "publish": [
                 {

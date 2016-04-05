@@ -28,6 +28,7 @@ You can get the pre-built binaries for your OS and architecture at snap's [Githu
 
 #### To build the plugin binary:
 Fork https://github.com/intelsdi-x/snap-plugin-collector-processes
+
 Clone repo into `$GOPATH/src/github/intelsdi-x/`:
 ```
 $ git clone https://github.com/<yourGithubID>/snap-plugin-collector-processes
@@ -43,7 +44,7 @@ This builds the plugin in `/build/rootfs`
 ### Collected Metrics
 This plugin has the ability to gather the following metrics:
 
-Namespace | Data Type | Description (optional)
+Namespace | Data Type | Description
 ----------|-----------|-----------------------
 /intel/procfs/processes/running | uint64 | Number of processes in state running
 /intel/procfs/processes/sleeping | uint64 | Number of processes in state sleeping
@@ -55,20 +56,20 @@ Namespace | Data Type | Description (optional)
 /intel/procfs/processes/wakekill | uint64 | Number of processes in state wakekill
 /intel/procfs/processes/waking | uint64 | Number of processes in state waking
 /intel/procfs/processes/parked | uint64 | Number of processes in state parked
-/intel/procfs/processes/\<proces_name\>/ps_vm | uint64 | Virtual memory size in bytes 
-/intel/procfs/processes/\<proces_name\>/ps_rss | uint64 | Resident Set Size: number of pages the process has in real memory
-/intel/procfs/processes/\<proces_name\>/ps_data | uint64 | Size of data segments
-/intel/procfs/processes/\<proces_name\>/ps_code | uint64 | Size of text segments
-/intel/procfs/processes/\<proces_name\>/ps_stacksize | uint64 | Stack size
-/intel/procfs/processes/\<proces_name\>/ps_cputime_user | uint64 | Amount of time that this process has been scheduled in user mode
-/intel/procfs/processes/\<proces_name\>/ps_cputime_system | uint64 | Amount of time that this process has been scheduled in kernel mode
-/intel/procfs/processes/\<proces_name\>/ps_pagefaults_min | uint64 | The number of minor faults the process has made
-/intel/procfs/processes/\<proces_name\>/ps_pagefaults_maj | uint64 | The number of major faults the process has made
-/intel/procfs/processes/\<proces_name\>/ps_disk_ops_syscr | uint64 | Attempt to count the number of read I/O operations
-/intel/procfs/processes/\<proces_name\>/ps_disk_ops_syscw | uint64 | Attempt to count the number of write I/O operations
-/intel/procfs/processes/\<proces_name\>/ps_disk_octets_rchar | uint64 | The number of bytes which this task has caused to be read from storage
-/intel/procfs/processes/\<proces_name\>/ps_disk_octets_wchar | uint64 | The number of bytes which this task has caused, or shall cause to be written to disk
-/intel/procfs/processes/\<proces_name\>/ps_count | uint64 | Number of process instances
+/intel/procfs/processes/\<process_name\>/ps_vm | uint64 | Virtual memory size in bytes 
+/intel/procfs/processes/\<process_name\>/ps_rss | uint64 | Resident Set Size: number of pages the process has in real memory
+/intel/procfs/processes/\<process_name\>/ps_data | uint64 | Size of data segments
+/intel/procfs/processes/\<process_name\>/ps_code | uint64 | Size of text segments
+/intel/procfs/processes/\<process_name\>/ps_stacksize | uint64 | Stack size
+/intel/procfs/processes/\<process_name\>/ps_cputime_user | uint64 | Amount of time that this process has been scheduled in user mode
+/intel/procfs/processes/\<process_name\>/ps_cputime_system | uint64 | Amount of time that this process has been scheduled in kernel mode
+/intel/procfs/processes/\<process_name\>/ps_pagefaults_min | uint64 | The number of minor faults the process has made
+/intel/procfs/processes/\<process_name\>/ps_pagefaults_maj | uint64 | The number of major faults the process has made
+/intel/procfs/processes/\<process_name\>/ps_disk_ops_syscr | uint64 | Attempt to count the number of read I/O operations
+/intel/procfs/processes/\<process_name\>/ps_disk_ops_syscw | uint64 | Attempt to count the number of write I/O operations
+/intel/procfs/processes/\<process_name\>/ps_disk_octets_rchar | uint64 | The number of bytes which this task has caused to be read from storage
+/intel/procfs/processes/\<process_name\>/ps_disk_octets_wchar | uint64 | The number of bytes which this task has caused, or shall cause to be written to disk
+/intel/procfs/processes/\<process_name\>/ps_count | uint64 | Number of process instances
 
 ### Examples
 Example task manifest to use processes plugin:
@@ -82,10 +83,11 @@ Example task manifest to use processes plugin:
     "workflow": {
         "collect": {
             "metrics": {
-                "/intel/procfs/processes/*": {},
+                "/intel/procfs/processes/*/ps_disk_ops_syscr": {},
+                "/intel/procfs/processes/*/ps_disk_ops_syscw": {},
                 "/intel/procfs/processes/running": {},
-                "/intel/procfs/processes/sleeping": {},
-                "/intel/procfs/processes/zombie": {}
+                "/intel/procfs/processes/stopped": {},
+                "/intel/procfs/processes/waiting": {}
             },
             "publish": [
                 {
@@ -101,16 +103,19 @@ Example task manifest to use processes plugin:
 }
 
 ```
-
+If You would like to collect all metrics exposed by this plugin, set `/intel/procfs/processes/*` as a metric to collect in task manifest.
 
 ### Roadmap
+As we launch this plugin, we have a few items in mind for the next release:
 
-- gather task status `"/proc/<pid>/task"`
+- [  ] Gathering task status from `"/proc/<pid>/task"`
 
-If you have a feature request, please add it as an [issue](https://github.com/intelsdi-x/snap-plugin-publisher-kairosdb/issues/new) and/or submit a [pull request](https://github.com/intelsdi-x/snap-plugin-publisher-kairosdb/pulls).
+If you have a feature request, please add it as an [issue](https://github.com/intelsdi-x/snap-plugin-collector-processes/issues/new) and/or submit a [pull request](https://github.com/intelsdi-x/snap-plugin-collector-processes/pulls).
 
 ## Community Support
-This repository is one of **many** plugins in **snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support)
+This repository is one of **many** plugins in **snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap.
+
+To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support) or visit [snap Gitter channel](https://gitter.im/intelsdi-x/snap).
 
 ## Contributing
 We love contributions!
