@@ -1,10 +1,11 @@
-# snap-plugin-collector-processes
+# snap plugin collector - processes
 
 snap plugin for collects information about process states grouped by name. Additionally it provides metrics for each running process, also grouped by name. 
 
 1. [Getting Started](#getting-started)
   * [System Requirements](#system-requirements)
   * [Installation](#installation)
+  * [Configuration and Usage](#configuration-and-usage)
 2. [Documentation](#documentation)
   * [Collected Metrics](#collected-metrics)
   * [Examples](#examples)
@@ -16,7 +17,7 @@ snap plugin for collects information about process states grouped by name. Addit
 
 ## Getting Started
 
- Plugin collects specified metrics in-band on OS level
+Plugin collects specified metrics in-band on OS level
 
 ### System Requirements
 
@@ -39,40 +40,46 @@ $ make
 ```
 This builds the plugin in `/build/rootfs`
 
+### Configuration and Usage
+* Set up the [snap framework](https://github.com/intelsdi-x/snap/blob/master/README.md#getting-started).
+* Load the plugin and create a task, see example in [Examples](https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/README.md#examples).
+
 ## Documentation
 
 ### Collected Metrics
-This plugin has the ability to gather the following metrics:
-
-Namespace | Data Type | Description
-----------|-----------|-----------------------
-/intel/procfs/processes/running | uint64 | Number of processes in state running
-/intel/procfs/processes/sleeping | uint64 | Number of processes in state sleeping
-/intel/procfs/processes/waiting | uint64 | Number of processes in state waiting
-/intel/procfs/processes/zombie | uint64 | Number of processes in state zombie
-/intel/procfs/processes/stopped | uint64 | Number of processes in state stopped
-/intel/procfs/processes/tracing | uint64 | Number of processes in state tracing
-/intel/procfs/processes/dead | uint64 | Number of processes in state dead
-/intel/procfs/processes/wakekill | uint64 | Number of processes in state wakekill
-/intel/procfs/processes/waking | uint64 | Number of processes in state waking
-/intel/procfs/processes/parked | uint64 | Number of processes in state parked
-/intel/procfs/processes/\<process_name\>/ps_vm | uint64 | Virtual memory size in bytes 
-/intel/procfs/processes/\<process_name\>/ps_rss | uint64 | Resident Set Size: number of pages the process has in real memory
-/intel/procfs/processes/\<process_name\>/ps_data | uint64 | Size of data segments
-/intel/procfs/processes/\<process_name\>/ps_code | uint64 | Size of text segments
-/intel/procfs/processes/\<process_name\>/ps_stacksize | uint64 | Stack size
-/intel/procfs/processes/\<process_name\>/ps_cputime_user | uint64 | Amount of time that this process has been scheduled in user mode
-/intel/procfs/processes/\<process_name\>/ps_cputime_system | uint64 | Amount of time that this process has been scheduled in kernel mode
-/intel/procfs/processes/\<process_name\>/ps_pagefaults_min | uint64 | The number of minor faults the process has made
-/intel/procfs/processes/\<process_name\>/ps_pagefaults_maj | uint64 | The number of major faults the process has made
-/intel/procfs/processes/\<process_name\>/ps_disk_ops_syscr | uint64 | Attempt to count the number of read I/O operations
-/intel/procfs/processes/\<process_name\>/ps_disk_ops_syscw | uint64 | Attempt to count the number of write I/O operations
-/intel/procfs/processes/\<process_name\>/ps_disk_octets_rchar | uint64 | The number of bytes which this task has caused to be read from storage
-/intel/procfs/processes/\<process_name\>/ps_disk_octets_wchar | uint64 | The number of bytes which this task has caused, or shall cause to be written to disk
-/intel/procfs/processes/\<process_name\>/ps_count | uint64 | Number of process instances
+List of collected metrics is described in [METRICS.md](https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/METRICS.md).
 
 ### Examples
-Example task manifest to use processes plugin:
+
+Example running snap-plugin-collector-processes plugin and writing data to a file.
+
+Make sure that your `$SNAP_PATH` is set, if not:
+```
+$ export SNAP_PATH=<snapDirectoryPath>/build
+```
+
+Other paths to files should be set according to your configuration, using a file you should indicate where it is located.
+
+In one terminal window, open the snap daemon (in this case with logging set to 1,  trust disabled):
+```
+$ $SNAP_PATH/bin/snapd -l 1 -t 0
+```
+In another terminal window:
+
+Load snap-plugin-collector-processes plugin:
+```
+$ $SNAP_PATH/bin/snapctl plugin load snap-plugin-collector-processes
+```
+Load file plugin for publishing:
+```
+$ $SNAP_PATH/bin/snapctl plugin load $SNAP_PATH/plugin/snap-publisher-file
+```
+See available metrics for your system:
+```
+$ $SNAP_PATH/bin/snapctl metric list
+```
+
+Create a task manifest file to use snap-plugin-collector-processes plugin (exemplary files in [examples/tasks/] (https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/examples/tasks/)):
 ```
 {
     "version": 1,
@@ -103,7 +110,13 @@ Example task manifest to use processes plugin:
 }
 
 ```
-If You would like to collect all metrics exposed by this plugin, set `/intel/procfs/processes/*` as a metric to collect in task manifest.
+
+Create a task:
+```
+$ $SNAP_PATH/bin/snapctl task create -t processes-file.json
+```
+
+If you would like to collect all metrics exposed by this plugin, set `/intel/procfs/processes/*` as a metric to collect in task manifest.
 
 ### Roadmap
 As we launch this plugin, we have a few items in mind for the next release:
@@ -122,6 +135,8 @@ We love contributions!
 
 There's more than one way to give back, from examples to blogs to code updates. See our recommended process in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+And **thank you!** Your contribution, through code and participation, is incredibly important to us.
+
 ## License
 [snap](http://github.com/intelsdi-x/snap), along with this plugin, is an Open Source software released under the Apache 2.0 [License](LICENSE).
 
@@ -129,5 +144,3 @@ There's more than one way to give back, from examples to blogs to code updates. 
 
 * Author: [Marcin Krolik](https://github.com/marcin-krolik)
 * Co-author: [Izabella Raulin](https://github.com/IzabellaRaulin)
-
-And **thank you!** Your contribution, through code and participation, is incredibly important to us.
