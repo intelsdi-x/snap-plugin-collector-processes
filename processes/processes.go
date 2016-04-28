@@ -29,6 +29,7 @@ import (
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
+	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/serror"
 
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
@@ -42,7 +43,7 @@ const (
 	// FS is proc filesystem
 	FS = "procfs"
 	//VERSION of plugin
-	VERSION = 2
+	VERSION = 3
 )
 
 var (
@@ -75,20 +76,22 @@ func New() *procPlugin {
 }
 
 // GetMetricTypes returns list of available metrics
-func (procPlg *procPlugin) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	metricTypes := []plugin.PluginMetricType{}
+func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+	metricTypes := []plugin.MetricType{}
 	// build metric types from process metric names
 	for _, metricName := range metricNames {
-		metricType := plugin.PluginMetricType{
-			Namespace_: []string{VENDOR, FS, PLUGIN, "*", metricName},
-			Config_:    cfg.ConfigDataNode,
+		metricType := plugin.MetricType{
+			Namespace_: core.NewNamespace(VENDOR, FS, PLUGIN).
+				AddDynamicElement("process_name", "name of the running process").
+				AddStaticElements(metricName),
+			Config_: cfg.ConfigDataNode,
 		}
 		metricTypes = append(metricTypes, metricType)
 	}
 	// build metric types from process states
 	for _, state := range States.Values() {
-		metricType := plugin.PluginMetricType{
-			Namespace_: []string{VENDOR, FS, PLUGIN, state},
+		metricType := plugin.MetricType{
+			Namespace_: core.NewNamespace(VENDOR, FS, PLUGIN, state),
 			Config_:    cfg.ConfigDataNode,
 		}
 		metricTypes = append(metricTypes, metricType)
@@ -102,8 +105,8 @@ func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 }
 
 // CollectMetrics retrieves values for given metrics types
-func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	metrics := []plugin.PluginMetricType{}
+func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
+	metrics := []plugin.MetricType{}
 	stateCount := map[string]int{}
 
 	// init stateCount map with keys from States
@@ -128,31 +131,39 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 		if len(ns) < 4 {
 			return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at least 4, is %d", len(ns)))
 		}
-		if ns[3] == "*" {
+		// get incoming tags and add hostname
+		tags := metricType.Tags()
+		if tags == nil {
+			tags = map[string]string{}
+		}
+		tags["hostname"] = procPlg.host
+
+		isDynamic, _ := ns.IsDynamic()
+		if isDynamic {
 			// ns[3] is wildcard for all processes
 			for procName, instances := range stats {
 				procMetrics := setProcMetrics(instances)
 				for procMet, val := range procMetrics {
-					if procMet == ns[4] {
-						metric := plugin.PluginMetricType{
-							Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
+					if procMet == ns[4].Value {
+						metric := plugin.MetricType{
+							Namespace_: core.NewNamespace(VENDOR, FS, PLUGIN, procName, procMet),
 							Data_:      val,
 							Timestamp_: time.Now(),
-							Source_:    procPlg.host,
+							Tags_:      tags,
 						}
 						metrics = append(metrics, metric)
 					}
 				}
 			}
-		} else if str.Contains(States.Values(), ns[3]) {
+		} else if str.Contains(States.Values(), ns[3].Value) {
 			// ns[3] contains process state
-			state := ns[3]
+			state := ns[3].Value
 			if val, ok := stateCount[state]; ok {
-				metric := plugin.PluginMetricType{
+				metric := plugin.MetricType{
 					Namespace_: ns,
 					Data_:      val,
 					Timestamp_: time.Now(),
-					Source_:    procPlg.host,
+					Tags_:      tags,
 				}
 				metrics = append(metrics, metric)
 			}
@@ -161,8 +172,8 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 			if len(ns) != 5 {
 				return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at 5, is %d", len(ns)))
 			}
-			procName := ns[3]
-			metricName := ns[4]
+			procName := ns[3].Value
+			metricName := ns[4].Value
 			instances, found := stats[procName]
 			if !found {
 				return nil, serror.New(fmt.Errorf("Process name {%s} not found!", procName))
@@ -170,11 +181,11 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 			procMetrics := setProcMetrics(instances)
 			for procMet, val := range procMetrics {
 				if metricName == procMet {
-					metric := plugin.PluginMetricType{
-						Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
+					metric := plugin.MetricType{
+						Namespace_: core.NewNamespace(VENDOR, FS, PLUGIN, procName, procMet),
 						Data_:      val,
 						Timestamp_: time.Now(),
-						Source_:    procPlg.host,
+						Tags_:      tags,
 					}
 					metrics = append(metrics, metric)
 					break

@@ -28,41 +28,43 @@ import (
 	"testing"
 
 	"github.com/intelsdi-x/snap/control/plugin"
+	"github.com/intelsdi-x/snap/core"
+
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 )
 
 var (
-	mockMts = []plugin.PluginMetricType{
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "dead"},
+	mockMts = []plugin.MetricType{
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "dead"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "parked"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "parked"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "running"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "running"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "sleeping"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "sleeping"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "stopped"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "stopped"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "tracing"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "tracing"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "waiting"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "waiting"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "wakekill"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "wakekill"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "waking"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "waking"),
 		},
-		plugin.PluginMetricType{
-			Namespace_: []string{"intel", "procfs", "processes", "zombie"},
+		plugin.MetricType{
+			Namespace_: core.NewNamespace("intel", "procfs", "processes", "zombie"),
 		},
 	}
 
@@ -122,7 +124,7 @@ func TestGetConfigPolicy(t *testing.T) {
 
 func TestGetMetricTypes(t *testing.T) {
 
-	var cfg plugin.PluginConfigType
+	var cfg plugin.ConfigType
 
 	Convey("get metric types successfully", t, func() {
 		procPlugin := New()
@@ -178,9 +180,11 @@ func TestCollectMetrics(t *testing.T) {
 
 			Convey("when name of collect metric is equal to asterisk (exposed dynamic metrics)", func() {
 
-				results, err := procPlugin.CollectMetrics([]plugin.PluginMetricType{
-					plugin.PluginMetricType{
-						Namespace_: []string{"intel", "procfs", "processes", "*", "ps_count"},
+				results, err := procPlugin.CollectMetrics([]plugin.MetricType{
+					plugin.MetricType{
+						Namespace_: core.NewNamespace("intel", "procfs", "processes").
+							AddDynamicElement("process_name", "process name").
+							AddStaticElement("ps_count"),
 					},
 				})
 
@@ -190,12 +194,16 @@ func TestCollectMetrics(t *testing.T) {
 
 				for _, r := range results {
 					ns := r.Namespace()
-					So(mockProc.validateValue(ns[len(ns)-1], r.Data().(uint64)), ShouldBeTrue)
+					So(mockProc.validateValue(ns[len(ns)-1].Value, r.Data().(uint64)), ShouldBeTrue)
 				}
 			})
 
 			Convey("when names of collect metrics include asterisk", func() {
-				mockMtsWithAsterisk := append(mockMts, plugin.PluginMetricType{Namespace_: []string{"intel", "procfs", "processes", "*", "ps_count"}})
+				mockMtsWithAsterisk := append(mockMts, plugin.MetricType{
+					Namespace_: core.NewNamespace("intel", "procfs", "processes").
+						AddDynamicElement("process_name", "process name").
+						AddStaticElement("ps_count"),
+				})
 
 				results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
 
@@ -205,9 +213,9 @@ func TestCollectMetrics(t *testing.T) {
 			})
 
 			Convey("when name of collect metric is invalid", func() {
-				results, err := procPlugin.CollectMetrics([]plugin.PluginMetricType{
-					plugin.PluginMetricType{
-						Namespace_: []string{"intel", "procfs", "zombie"},
+				results, err := procPlugin.CollectMetrics([]plugin.MetricType{
+					plugin.MetricType{
+						Namespace_: core.NewNamespace("intel", "procfs", "zombie"),
 					},
 				})
 
