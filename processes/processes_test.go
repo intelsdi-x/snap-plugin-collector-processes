@@ -139,6 +139,10 @@ func TestGetMetricTypes(t *testing.T) {
 		So(results, ShouldNotBeEmpty)
 
 		So(len(results), ShouldEqual, States.Size()+len(metricNames))
+
+		for _, res := range results {
+			So(res.Description(), ShouldNotBeBlank)
+		}
 	})
 }
 
