@@ -29,6 +29,7 @@ import (
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
+	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/serror"
 
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
@@ -42,25 +43,67 @@ const (
 	// FS is proc filesystem
 	FS = "procfs"
 	//VERSION of plugin
-	VERSION = 2
+	VERSION = 3
 )
 
 var (
-	metricNames = []string{
-		"ps_vm",
-		"ps_rss",
-		"ps_data",
-		"ps_code",
-		"ps_stacksize",
-		"ps_cputime_user",
-		"ps_cputime_system",
-		"ps_pagefaults_min",
-		"ps_pagefaults_maj",
-		"ps_disk_ops_syscr",
-		"ps_disk_ops_syscw",
-		"ps_disk_octets_rchar",
-		"ps_disk_octets_wchar",
-		"ps_count",
+	metricNames = map[string]label{
+		"ps_vm": label{
+			description: "Virtual memory size in bytes",
+			unit:        "B",
+		},
+		"ps_rss": label{
+			description: "Resident Set Size: number of pages the process has in real memory",
+			unit:        "",
+		},
+		"ps_data": label{
+			description: "Size of data segments",
+			unit:        "B",
+		},
+		"ps_code": label{
+			description: "Size of text segment",
+			unit:        "B",
+		},
+		"ps_stacksize": label{
+			description: "Stack size",
+			unit:        "B",
+		},
+		"ps_cputime_user": label{
+			description: "Amount of time that this process has been scheduled in user mode",
+			unit:        "Jiff",
+		},
+		"ps_cputime_system": label{
+			description: "Amount of time that this process has been scheduled in kernel mode",
+			unit:        "Jiff",
+		},
+		"ps_pagefaults_min": label{
+			description: "The number of minor faults the process has made",
+			unit:        "",
+		},
+		"ps_pagefaults_maj": label{
+			description: "The number of major faults the process has made",
+			unit:        "",
+		},
+		"ps_disk_ops_syscr": label{
+			description: "Attempt to count the number of read I/O operations",
+			unit:        "",
+		},
+		"ps_disk_ops_syscw": label{
+			description: "Attempt to count the number of write I/O operations",
+			unit:        "",
+		},
+		"ps_disk_octets_rchar": label{
+			description: "The number of bytes which this task has caused to be read from storage",
+			unit:        "B",
+		},
+		"ps_disk_octets_wchar": label{
+			description: "The number of bytes which this task has caused, or shall cause to be written to disk",
+			unit:        "B",
+		},
+		"ps_count": label{
+			description: "Number of process instances",
+			unit:        "",
+		},
 	}
 )
 
@@ -75,21 +118,27 @@ func New() *procPlugin {
 }
 
 // GetMetricTypes returns list of available metrics
-func (procPlg *procPlugin) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	metricTypes := []plugin.PluginMetricType{}
+func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+	metricTypes := []plugin.MetricType{}
 	// build metric types from process metric names
-	for _, metricName := range metricNames {
-		metricType := plugin.PluginMetricType{
-			Namespace_: []string{VENDOR, FS, PLUGIN, "*", metricName},
-			Config_:    cfg.ConfigDataNode,
+	for metricName, label := range metricNames {
+		metricType := plugin.MetricType{
+			Namespace_: core.NewNamespace(VENDOR, FS, PLUGIN).
+				AddDynamicElement("process_name", "name of the running process").
+				AddStaticElements(metricName),
+			Config_:      cfg.ConfigDataNode,
+			Description_: label.description,
+			Unit_:        label.unit,
 		}
 		metricTypes = append(metricTypes, metricType)
 	}
 	// build metric types from process states
 	for _, state := range States.Values() {
-		metricType := plugin.PluginMetricType{
-			Namespace_: []string{VENDOR, FS, PLUGIN, state},
-			Config_:    cfg.ConfigDataNode,
+		metricType := plugin.MetricType{
+			Namespace_:   core.NewNamespace(VENDOR, FS, PLUGIN, state),
+			Config_:      cfg.ConfigDataNode,
+			Description_: fmt.Sprintf("Number of processes in %s state", state),
+			Unit_:        "",
 		}
 		metricTypes = append(metricTypes, metricType)
 	}
@@ -102,8 +151,8 @@ func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 }
 
 // CollectMetrics retrieves values for given metrics types
-func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	metrics := []plugin.PluginMetricType{}
+func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
+	metrics := []plugin.MetricType{}
 	stateCount := map[string]int{}
 
 	// init stateCount map with keys from States
@@ -128,31 +177,35 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 		if len(ns) < 4 {
 			return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at least 4, is %d", len(ns)))
 		}
-		if ns[3] == "*" {
+
+		isDynamic, _ := ns.IsDynamic()
+		if isDynamic {
 			// ns[3] is wildcard for all processes
 			for procName, instances := range stats {
 				procMetrics := setProcMetrics(instances)
 				for procMet, val := range procMetrics {
-					if procMet == ns[4] {
-						metric := plugin.PluginMetricType{
-							Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
-							Data_:      val,
-							Timestamp_: time.Now(),
-							Source_:    procPlg.host,
+					if procMet == ns[4].Value {
+						metric := plugin.MetricType{
+							Namespace_:   core.NewNamespace(VENDOR, FS, PLUGIN, procName, procMet),
+							Data_:        val,
+							Timestamp_:   time.Now(),
+							Unit_:        metricNames[procMet].unit,
+							Description_: metricNames[procMet].description,
 						}
 						metrics = append(metrics, metric)
 					}
 				}
 			}
-		} else if str.Contains(States.Values(), ns[3]) {
+		} else if str.Contains(States.Values(), ns[3].Value) {
 			// ns[3] contains process state
-			state := ns[3]
+			state := ns[3].Value
 			if val, ok := stateCount[state]; ok {
-				metric := plugin.PluginMetricType{
-					Namespace_: ns,
-					Data_:      val,
-					Timestamp_: time.Now(),
-					Source_:    procPlg.host,
+				metric := plugin.MetricType{
+					Namespace_:   ns,
+					Data_:        val,
+					Timestamp_:   time.Now(),
+					Description_: fmt.Sprintf("Number of processes in %s state", state),
+					Unit_:        "",
 				}
 				metrics = append(metrics, metric)
 			}
@@ -161,8 +214,8 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 			if len(ns) != 5 {
 				return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at 5, is %d", len(ns)))
 			}
-			procName := ns[3]
-			metricName := ns[4]
+			procName := ns[3].Value
+			metricName := ns[4].Value
 			instances, found := stats[procName]
 			if !found {
 				return nil, serror.New(fmt.Errorf("Process name {%s} not found!", procName))
@@ -170,11 +223,12 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 			procMetrics := setProcMetrics(instances)
 			for procMet, val := range procMetrics {
 				if metricName == procMet {
-					metric := plugin.PluginMetricType{
-						Namespace_: []string{VENDOR, FS, PLUGIN, procName, procMet},
-						Data_:      val,
-						Timestamp_: time.Now(),
-						Source_:    procPlg.host,
+					metric := plugin.MetricType{
+						Namespace_:   core.NewNamespace(VENDOR, FS, PLUGIN, procName, procMet),
+						Data_:        val,
+						Timestamp_:   time.Now(),
+						Description_: metricNames[procMet].description,
+						Unit_:        metricNames[procMet].unit,
 					}
 					metrics = append(metrics, metric)
 					break
@@ -188,7 +242,7 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.PluginMetricType)
 
 func setProcMetrics(instances []Proc) map[string]uint64 {
 	procMetrics := map[string]uint64{}
-	for _, metricName := range metricNames {
+	for metricName, _ := range metricNames {
 		procMetrics[metricName] = 0
 	}
 	procMetrics["ps_count"] = uint64(len(instances))
@@ -214,16 +268,16 @@ func setProcMetrics(instances []Proc) map[string]uint64 {
 		}
 
 		utime, _ := strconv.ParseUint(string(instance.Stat[13]), 10, 64)
-		procMetrics["ps_cputime_user"] += utime * 10000
+		procMetrics["ps_cputime_user"] += utime
 
 		stime, _ := strconv.ParseUint(string(instance.Stat[14]), 10, 64)
-		procMetrics["ps_cputime_system"] += stime * 10000
+		procMetrics["ps_cputime_system"] += stime
 
 		minflt, _ := strconv.ParseUint(string(instance.Stat[9]), 10, 64)
-		procMetrics["ps_pagefaults_min"] += minflt * 10000
+		procMetrics["ps_pagefaults_min"] += minflt
 
 		majflt, _ := strconv.ParseUint(string(instance.Stat[11]), 10, 64)
-		procMetrics["ps_pagefaults_maj"] += majflt * 10000
+		procMetrics["ps_pagefaults_maj"] += majflt
 
 		procMetrics["ps_disk_octets_rchar"] += instance.Io["rchar"]
 		procMetrics["ps_disk_octets_wchar"] += instance.Io["wchar"]
@@ -238,4 +292,9 @@ func setProcMetrics(instances []Proc) map[string]uint64 {
 type procPlugin struct {
 	host string
 	mc   metricCollector
+}
+
+type label struct {
+	description string
+	unit        string
 }
