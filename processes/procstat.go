@@ -1,5 +1,3 @@
-// +build linux
-
 /*
 http://www.apache.org/licenses/LICENSE-2.0.txt
 
@@ -38,9 +36,6 @@ const (
 )
 
 var (
-	// procPath is declared as a variable for mocking in unit tests
-	procPath = "/proc"
-
 	// States contains possible states of processes
 	States = str.StringMap{
 		"R": "running",
@@ -68,7 +63,7 @@ type Proc struct {
 }
 
 // GetStats returns processes statistics
-func (psc *procStatsCollector) GetStats() (map[string][]Proc, error) {
+func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
 	if err != nil {
 		return nil, err
@@ -122,7 +117,8 @@ func (psc *procStatsCollector) GetStats() (map[string][]Proc, error) {
 			}
 			// tmpName begins and end with brackets, removing them
 			tmpName := strings.Fields(string(procStat))[1]
-			procName := tmpName[1 : len(tmpName)-1]
+			//procName := tmpName[1 : len(tmpName)-1]
+			procName := removeUnwatedChars(tmpName)
 			instances, _ := procs[procName]
 			procs[procName] = append(instances, pc)
 		}
@@ -130,7 +126,7 @@ func (psc *procStatsCollector) GetStats() (map[string][]Proc, error) {
 	return procs, nil
 }
 
-// readToMap retrives statistics from file specified by filename and returns its (name, value) as a map
+// readToMap retrieves statistics from file specified by filename and returns its (name, value) as a map
 func read2Map(fileName string) (map[string]uint64, error) {
 	stats := map[string]uint64{}
 	status, err := ioutil.ReadFile(fileName)
@@ -164,8 +160,28 @@ func read2Map(fileName string) (map[string]uint64, error) {
 	return stats, nil
 }
 
+func removeUnwatedChars(str string) string {
+	unwanteds := []unwanted{
+		{"[", ""},
+		{"]", ""},
+		{"(", ""},
+		{")", ""},
+		{"/", "."},
+		{"\\", ""},
+	}
+	for _, unw := range unwanteds {
+		str = strings.Replace(str, unw.char, unw.repl, -1)
+	}
+	return str
+}
+
 type metricCollector interface {
-	GetStats() (map[string][]Proc, error)
+	GetStats(procPath string) (map[string][]Proc, error)
+}
+
+type unwanted struct {
+	char string
+	repl string
 }
 
 // for mocking
