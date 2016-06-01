@@ -118,7 +118,7 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 			// tmpName begins and end with brackets, removing them
 			tmpName := strings.Fields(string(procStat))[1]
 			//procName := tmpName[1 : len(tmpName)-1]
-			procName := removeUnwatedChars(tmpName)
+			procName := removeUnwantedChars(tmpName)
 			instances, _ := procs[procName]
 			procs[procName] = append(instances, pc)
 		}
@@ -160,7 +160,7 @@ func read2Map(fileName string) (map[string]uint64, error) {
 	return stats, nil
 }
 
-func removeUnwatedChars(str string) string {
+func removeUnwantedChars(str string) string {
 	unwanteds := []unwanted{
 		{"[", ""},
 		{"]", ""},

@@ -206,8 +206,11 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 				procMetrics := setProcMetrics(instances)
 				for procMet, val := range procMetrics {
 					if procMet == ns[4].Value {
+						// change dynamic namespace element value (= "*") to current process name
+						// whole namespace stays dynamic (ns[3].Name != "")
+						ns[3].Value = procName
 						metric := plugin.MetricType{
-							Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, procName, procMet),
+							Namespace_:   ns,
 							Data_:        val,
 							Timestamp_:   time.Now(),
 							Unit_:        metricNames[procMet].unit,
