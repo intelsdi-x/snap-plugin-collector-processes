@@ -120,7 +120,7 @@ func TestCollectMetrics(t *testing.T) {
 		procPlugin := New()
 
 		cfg := plugin.NewPluginConfigType()
-		cfg.AddItem("procfs_path", ctypes.ConfigValueStr{"/proc"})
+		cfg.AddItem("proc_path", ctypes.ConfigValueStr{"/proc"})
 
 		mockMts := []plugin.MetricType{
 			plugin.MetricType{

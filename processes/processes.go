@@ -159,7 +159,7 @@ func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metri
 // GetConfigPolicy returns config policy
 func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	cp := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("procfs_path", false, "/proc")
+	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
 	node := cpolicy.NewPolicyNode()
 	node.Add(rule)
 	cp.Add([]string{pluginVendor, fs, pluginName}, node)
@@ -171,7 +171,7 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 	metrics := []plugin.MetricType{}
 	stateCount := map[string]int{}
 
-	procPath, err := config.GetConfigItem(metricTypes[0], "procfs_path")
+	procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
 	if err != nil {
 		return nil, err
 	}
