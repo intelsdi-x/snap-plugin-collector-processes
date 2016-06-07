@@ -30,44 +30,12 @@ import (
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/core"
 
+	"github.com/intelsdi-x/snap/core/ctypes"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/mock"
 )
 
 var (
-	mockMts = []plugin.MetricType{
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "dead"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "parked"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "running"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "sleeping"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "stopped"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "tracing"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "waiting"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "wakekill"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "waking"),
-		},
-		plugin.MetricType{
-			Namespace_: core.NewNamespace("intel", "procfs", "processes", "zombie"),
-		},
-	}
-
 	mockProc = Proc{
 		Pid:     815,
 		State:   "S",
@@ -98,7 +66,7 @@ type mcMock struct {
 	mock.Mock
 }
 
-func (mc *mcMock) GetStats() (map[string][]Proc, error) {
+func (mc *mcMock) GetStats(procPath string) (map[string][]Proc, error) {
 	args := mc.Called()
 	var r0 map[string][]Proc
 	if args.Get(0) != nil {
@@ -151,6 +119,52 @@ func TestCollectMetrics(t *testing.T) {
 	Convey("collect metric", t, func() {
 		procPlugin := New()
 
+		cfg := plugin.NewPluginConfigType()
+		cfg.AddItem("proc_path", ctypes.ConfigValueStr{"/proc"})
+
+		mockMts := []plugin.MetricType{
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "dead"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "parked"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "running"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "sleeping"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "stopped"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "tracing"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "waiting"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "wakekill"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "waking"),
+				Config_:    cfg.ConfigDataNode,
+			},
+			plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes", "zombie"),
+				Config_:    cfg.ConfigDataNode,
+			},
+		}
+
 		Convey("new processes collector", func() {
 			So(procPlugin, ShouldNotBeNil)
 		})
@@ -159,7 +173,7 @@ func TestCollectMetrics(t *testing.T) {
 			mc := &mcMock{}
 			procPlugin.mc = mc
 
-			mc.On("GetStats").Return(nil, errors.New("x"))
+			mc.On("GetStats", mock.Anything).Return(nil, errors.New("x"))
 
 			results, err := procPlugin.CollectMetrics(mockMts)
 
@@ -189,6 +203,7 @@ func TestCollectMetrics(t *testing.T) {
 						Namespace_: core.NewNamespace("intel", "procfs", "processes").
 							AddDynamicElement("process_name", "process name").
 							AddStaticElement("ps_count"),
+						Config_: cfg.ConfigDataNode,
 					},
 				})
 
@@ -220,6 +235,7 @@ func TestCollectMetrics(t *testing.T) {
 				results, err := procPlugin.CollectMetrics([]plugin.MetricType{
 					plugin.MetricType{
 						Namespace_: core.NewNamespace("intel", "procfs", "zombie"),
+						Config_:    cfg.ConfigDataNode,
 					},
 				})
 

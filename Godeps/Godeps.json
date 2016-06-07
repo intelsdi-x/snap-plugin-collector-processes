@@ -9,63 +9,67 @@
 			"Rev": "cd7d1bbe41066b6c1f19780f895901052150a575"
 		},
 		{
+			"ImportPath": "github.com/intelsdi-x/snap-plugin-utilities/config",
+			"Rev": "04621af7a3979bcb8aaf08c3b6542b43fe0bf6cf"
+		},
+		{
 			"ImportPath": "github.com/intelsdi-x/snap-plugin-utilities/str",
 			"Rev": "04621af7a3979bcb8aaf08c3b6542b43fe0bf6cf"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/control/plugin",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/control/plugin/cpolicy",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/control/plugin/encoding",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/control/plugin/encrypter",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/core",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/core/cdata",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/core/ctypes",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/core/serror",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/pkg/ctree",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/pkg/schedule",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/intelsdi-x/snap/scheduler/wmap",
-			"Comment": "v0.13.0-beta-79-ga579d11",
-			"Rev": "a579d11b579d8bf521ffc51ae3416e84543d209c"
+			"Comment": "v0.13.0-beta-131-g4d7d4ca",
+			"Rev": "4d7d4ca909d51bfc21399536d3513a8bb49a35be"
 		},
 		{
 			"ImportPath": "github.com/robfig/cron",

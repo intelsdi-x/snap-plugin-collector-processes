@@ -1,5 +1,3 @@
-// +build linux
-
 /*
 http://www.apache.org/licenses/LICENSE-2.0.txt
 
@@ -35,13 +33,7 @@ func main() {
 	}
 
 	plugin.Start(
-		plugin.NewPluginMeta(
-			processes.PLUGIN,
-			processes.VERSION,
-			plugin.CollectorPluginType,
-			[]string{},
-			[]string{plugin.SnapGOBContentType},
-			plugin.ConcurrencyCount(1)),
+		processes.Meta(),
 		procPlg,
 		os.Args[1],
 	)

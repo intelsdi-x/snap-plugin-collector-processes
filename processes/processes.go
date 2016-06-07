@@ -1,5 +1,3 @@
-// +build linux
-
 /*
 http://www.apache.org/licenses/LICENSE-2.0.txt
 
@@ -32,18 +30,19 @@ import (
 	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/serror"
 
+	"github.com/intelsdi-x/snap-plugin-utilities/config"
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
 )
 
 const (
-	//PLUGIN name
-	PLUGIN = "processes"
-	//VENDOR name
-	VENDOR = "intel"
-	// FS is proc filesystem
-	FS = "procfs"
-	//VERSION of plugin
-	VERSION = 3
+	//plugin name
+	pluginName = "processes"
+	//plugin vendor
+	pluginVendor = "intel"
+	// fs is proc filesystem
+	fs = "procfs"
+	//version of plugin
+	version = 4
 )
 
 var (
@@ -117,13 +116,25 @@ func New() *procPlugin {
 	return &procPlugin{host: host, mc: &procStatsCollector{}}
 }
 
+// Meta returns plugin meta data
+func Meta() *plugin.PluginMeta {
+	return plugin.NewPluginMeta(
+		pluginVendor,
+		version,
+		plugin.CollectorPluginType,
+		[]string{},
+		[]string{plugin.SnapGOBContentType},
+		plugin.ConcurrencyCount(1),
+	)
+}
+
 // GetMetricTypes returns list of available metrics
 func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
 	metricTypes := []plugin.MetricType{}
 	// build metric types from process metric names
 	for metricName, label := range metricNames {
 		metricType := plugin.MetricType{
-			Namespace_: core.NewNamespace(VENDOR, FS, PLUGIN).
+			Namespace_: core.NewNamespace(pluginVendor, fs, pluginName).
 				AddDynamicElement("process_name", "name of the running process").
 				AddStaticElements(metricName),
 			Config_:      cfg.ConfigDataNode,
@@ -135,7 +146,7 @@ func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metri
 	// build metric types from process states
 	for _, state := range States.Values() {
 		metricType := plugin.MetricType{
-			Namespace_:   core.NewNamespace(VENDOR, FS, PLUGIN, state),
+			Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, state),
 			Config_:      cfg.ConfigDataNode,
 			Description_: fmt.Sprintf("Number of processes in %s state", state),
 			Unit_:        "",
@@ -147,7 +158,12 @@ func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metri
 
 // GetConfigPolicy returns config policy
 func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	return cpolicy.New(), nil
+	cp := cpolicy.New()
+	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
+	node := cpolicy.NewPolicyNode()
+	node.Add(rule)
+	cp.Add([]string{pluginVendor, fs, pluginName}, node)
+	return cp, nil
 }
 
 // CollectMetrics retrieves values for given metrics types
@@ -155,12 +171,17 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 	metrics := []plugin.MetricType{}
 	stateCount := map[string]int{}
 
+	procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
+	if err != nil {
+		return nil, err
+	}
+
 	// init stateCount map with keys from States
 	for _, state := range States.Values() {
 		stateCount[state] = 0
 	}
 	// get all proc stats
-	stats, err := procPlg.mc.GetStats()
+	stats, err := procPlg.mc.GetStats(procPath.(string))
 	if err != nil {
 		return nil, serror.New(err)
 	}
@@ -185,8 +206,11 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 				procMetrics := setProcMetrics(instances)
 				for procMet, val := range procMetrics {
 					if procMet == ns[4].Value {
+						// change dynamic namespace element value (= "*") to current process name
+						// whole namespace stays dynamic (ns[3].Name != "")
+						ns[3].Value = procName
 						metric := plugin.MetricType{
-							Namespace_:   core.NewNamespace(VENDOR, FS, PLUGIN, procName, procMet),
+							Namespace_:   ns,
 							Data_:        val,
 							Timestamp_:   time.Now(),
 							Unit_:        metricNames[procMet].unit,
@@ -224,7 +248,7 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 			for procMet, val := range procMetrics {
 				if metricName == procMet {
 					metric := plugin.MetricType{
-						Namespace_:   core.NewNamespace(VENDOR, FS, PLUGIN, procName, procMet),
+						Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, procName, procMet),
 						Data_:        val,
 						Timestamp_:   time.Now(),
 						Description_: metricNames[procMet].description,

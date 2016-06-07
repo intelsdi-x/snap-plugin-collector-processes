@@ -1,4 +1,4 @@
-// +build linux
+// +build small
 
 /*
 http://www.apache.org/licenses/LICENSE-2.0.txt
@@ -90,7 +90,6 @@ var (
 )
 
 func TestGetStats(t *testing.T) {
-	procPath = mockPath
 	dut := &procStatsCollector{}
 
 	Convey("new proc stats collector", t, func() {
@@ -99,7 +98,7 @@ func TestGetStats(t *testing.T) {
 
 	Convey("when procfs directory does not exist", t, func() {
 		deleteMockFiles()
-		results, err := dut.GetStats()
+		results, err := dut.GetStats(mockPath)
 
 		So(err, ShouldNotBeNil)
 		So(results, ShouldBeEmpty)
@@ -108,7 +107,7 @@ func TestGetStats(t *testing.T) {
 	Convey("when none process exist", t, func() {
 		deleteMockFiles()
 		os.Mkdir(mockPath, os.ModePerm)
-		results, err := dut.GetStats()
+		results, err := dut.GetStats(mockPath)
 
 		So(results, ShouldBeEmpty)
 		So(err, ShouldBeNil)
@@ -121,7 +120,7 @@ func TestGetStats(t *testing.T) {
 			createMockFiles()
 			fileToRemove := mockPath + "/" + strconv.Itoa(mockPid[0]) + fileName
 			os.Remove(fileToRemove)
-			results, err := dut.GetStats()
+			results, err := dut.GetStats(mockPath)
 
 			So(err, ShouldNotBeNil)
 			So(results, ShouldBeEmpty)
@@ -132,7 +131,7 @@ func TestGetStats(t *testing.T) {
 
 		Convey("when proccess is not in a zombie state", func() {
 			createMockFiles()
-			results, err := dut.GetStats()
+			results, err := dut.GetStats(mockPath)
 
 			So(err, ShouldBeNil)
 			So(results, ShouldNotBeEmpty)
@@ -169,7 +168,7 @@ func TestGetStats(t *testing.T) {
 			mockFileStatCont = []byte(strings.Replace(string(mockFileStatCont), " R ", " Z ", 1))
 
 			createMockFiles()
-			results, err := dut.GetStats()
+			results, err := dut.GetStats(mockPath)
 
 			So(err, ShouldBeNil)
 			So(results, ShouldNotBeEmpty)
