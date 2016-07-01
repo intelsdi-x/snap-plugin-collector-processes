@@ -119,7 +119,7 @@ func New() *procPlugin {
 // Meta returns plugin meta data
 func Meta() *plugin.PluginMeta {
 	return plugin.NewPluginMeta(
-		pluginVendor,
+		pluginName,
 		version,
 		plugin.CollectorPluginType,
 		[]string{},
