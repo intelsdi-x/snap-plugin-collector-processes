@@ -42,7 +42,7 @@ const (
 	// fs is proc filesystem
 	fs = "procfs"
 	//version of plugin
-	version = 4
+	version = 5
 )
 
 var (
@@ -208,9 +208,10 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 					if procMet == ns[4].Value {
 						// change dynamic namespace element value (= "*") to current process name
 						// whole namespace stays dynamic (ns[3].Name != "")
-						ns[3].Value = procName
+						nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
+						nuns[3] = fillNsElement(&nuns[3], procName)
 						metric := plugin.MetricType{
-							Namespace_:   ns,
+							Namespace_:   nuns,
 							Data_:        val,
 							Timestamp_:   time.Now(),
 							Unit_:        metricNames[procMet].unit,
@@ -310,6 +311,10 @@ func setProcMetrics(instances []Proc) map[string]uint64 {
 	}
 
 	return procMetrics
+}
+
+func fillNsElement(element *core.NamespaceElement, value string) core.NamespaceElement {
+	return core.NamespaceElement{value, element.Description, element.Name}
 }
 
 // procPlugin holds host name and reference to metricCollector which has method of GetStats()
