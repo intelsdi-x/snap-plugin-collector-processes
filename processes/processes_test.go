@@ -35,31 +35,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-var (
-	mockProc = Proc{
-		Pid:     815,
-		State:   "S",
-		CmdLine: "/usr/sbin/NetworkManager --no-daemon",
+const (
+	mockProcName = "NetworkManager"
+	mockProcPid  = 815
+)
 
-		Stat: []string{
-			"815", "(NetworkManager)", "S", "1", "815", "815", "0", "-1", "1077960960", "3601", "513", "0", "0",
-			"115", "28", "0", "0", "20", "0", "4", "331", "459870208", "2145", "18446744073709551615", "140096990736384",
-			"140096992449927", "140729036690976", "140729036689856", "140096924699517", "0", "20483", "4096", "65536",
-			"18446744073709551615", "0", "0", "17", "7", "0", "0", "3", "0", "0", "140096994547816", "140096994587072",
-			"140097024917504", "140729036697458", "140729036697495", "140729036697495", "140729036697567", "0",
-		},
-		Io: map[string]uint64{
-			"syscr":                 1100676,
-			"syscw":                 124253,
-			"read_bytes":            102400,
-			"write_bytes":           0,
-			"cancelled_write_bytes": 0,
-			"rchar":                 260972212,
-			"wchar":                 995958,
-		},
-		VmData: 227209216,
-		VmCode: 27209216,
-	}
+var (
+	mockProc = makeMockProc(mockProcName, mockProcPid)
 )
 
 type mcMock struct {
@@ -246,6 +228,59 @@ func TestCollectMetrics(t *testing.T) {
 
 		})
 
+		Convey("when getStats() returns statistics for multiple processes", func() {
+			mc := &mcMock{}
+			procPlugin.mc = mc
+			makeSleepyName := func(num int) string {
+				return fmt.Sprintf("sleepy%d", num)
+			}
+			statsRes := map[string][]Proc{}
+			for i := 0; i < 10; i++ {
+				procName := makeSleepyName(i)
+				statsRes[procName] = []Proc{makeMockProc(procName, 24000+i)}
+			}
+			numProcs := len(statsRes)
+			mc.On("GetStats").Return(statsRes, nil)
+			mockMtsWithAsterisk := []plugin.MetricType{plugin.MetricType{
+				Namespace_: core.NewNamespace("intel", "procfs", "processes").
+					AddDynamicElement("process_name", "process name").
+					AddStaticElement("ps_count"),
+				Config_: cfg.ConfigDataNode,
+			}}
+			numMts := len(mockMtsWithAsterisk)
+			Convey("and metrics for all processes are requested in call to CollectMetrics", func() {
+				results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
+				Convey("then no error should be reported", func() {
+					So(err, ShouldBeNil)
+				})
+				Convey("so all metrics and processes should be represented in results", func() {
+					So(len(results), ShouldEqual, numProcs*numMts)
+				})
+				Convey("so all processes should be represented in results", func() {
+					expProcNames := map[string]bool{}
+					actProcNames := map[string]bool{}
+					for i := 0; i < numProcs; i++ {
+						expProcNames[makeSleepyName(i)] = true
+					}
+					for _, mt := range results {
+						actProcNames[mt.Namespace()[3].Value] = true
+					}
+					So(actProcNames, ShouldResemble, expProcNames)
+				})
+				Convey("so all metrics should be represented in results", func() {
+					expMtNames := map[string]bool{}
+					actMtNames := map[string]bool{}
+					for _, mt := range mockMtsWithAsterisk {
+						expMtNames[mt.Namespace()[4].Value] = true
+					}
+					for _, mt := range results {
+						actMtNames[mt.Namespace()[4].Value] = true
+					}
+					So(actMtNames, ShouldResemble, expMtNames)
+				})
+			})
+		})
+
 	})
 
 }
@@ -312,4 +347,33 @@ func (mp Proc) validateValue(param string, value uint64) bool {
 	}
 
 	return ok
+}
+
+func makeMockProc(procName string, procPid int) Proc {
+	pidStr := strconv.Itoa(procPid)
+	res := Proc{
+		Pid:     procPid,
+		State:   "S",
+		CmdLine: "/usr/sbin/" + procName + " --no-daemon",
+
+		Stat: []string{
+			pidStr, "(" + procName + ")", "S", "1", pidStr, pidStr, "0", "-1", "1077960960", "3601", "513", "0", "0",
+			"115", "28", "0", "0", "20", "0", "4", "331", "459870208", "2145", "18446744073709551615", "140096990736384",
+			"140096992449927", "140729036690976", "140729036689856", "140096924699517", "0", "20483", "4096", "65536",
+			"18446744073709551615", "0", "0", "17", "7", "0", "0", "3", "0", "0", "140096994547816", "140096994587072",
+			"140097024917504", "140729036697458", "140729036697495", "140729036697495", "140729036697567", "0",
+		},
+		Io: map[string]uint64{
+			"syscr":                 1100676,
+			"syscw":                 124253,
+			"read_bytes":            102400,
+			"write_bytes":           0,
+			"cancelled_write_bytes": 0,
+			"rchar":                 260972212,
+			"wchar":                 995958,
+		},
+		VmData: 227209216,
+		VmCode: 27209216,
+	}
+	return res
 }
