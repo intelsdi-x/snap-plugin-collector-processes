@@ -76,18 +76,18 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 			fstat := filepath.Join(procPath, file.Name(), procStat)
 			procStat, err := ioutil.ReadFile(fstat)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			// get proc/<pid>/cmdline data
 			fcmd := filepath.Join(procPath, file.Name(), procCmd)
 			procCmdLine, err := ioutil.ReadFile(fcmd)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			// get proc/<pid>/io data
 			procIo, err := read2Map(filepath.Join(procPath, file.Name(), procIO))
 			if err != nil {
-				return nil, err
+				continue
 			}
 			// get proc/<pid>/status data
 			var pStatus map[string]uint64
@@ -100,7 +100,7 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 			} else {
 				pStatus, err = read2Map(filepath.Join(procPath, file.Name(), procStatus))
 				if err != nil {
-					return nil, err
+					continue
 				}
 				vmData = pStatus["VmData"] * 1024
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024
