@@ -15,9 +15,9 @@
             },
             "publish": [
                 {
-                    "plugin_name": "file",
+                    "plugin_name": "mock-file",
                     "config": {
-                        "file": "/tmp/published_processes"
+                        "file": "/tmp/published_processes.log"
                     }
                 }
             ],

@@ -70,16 +70,16 @@ Load snap-plugin-collector-processes plugin:
 ```
 $ $SNAP_PATH/bin/snapctl plugin load snap-plugin-collector-processes
 ```
-Load file plugin for publishing:
+Load mock-file plugin for publishing:
 ```
-$ $SNAP_PATH/bin/snapctl plugin load $SNAP_PATH/plugin/snap-publisher-file
+$ $SNAP_PATH/bin/snapctl plugin load $SNAP_PATH/plugin/snap-plugin-publisher-mock-file
 ```
 See available metrics for your system:
 ```
 $ $SNAP_PATH/bin/snapctl metric list
 ```
 
-Create a task manifest file to use snap-plugin-collector-processes plugin (exemplary files in [examples/tasks/] (https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/examples/tasks/)):
+Create a task manifest file to use snap-plugin-collector-processes plugin (exemplary files in [examples/tasks/] (examples/tasks/)):
 ```
 {
     "version": 1,
@@ -98,9 +98,9 @@ Create a task manifest file to use snap-plugin-collector-processes plugin (exemp
             },
             "publish": [
                 {
-                    "plugin_name": "file",
+                    "plugin_name": "mock-file",
                     "config": {
-                        "file": "/tmp/published_processes"
+                        "file": "/tmp/published_processes.log"
                     }
                 }
             ],
@@ -113,7 +113,7 @@ Create a task manifest file to use snap-plugin-collector-processes plugin (exemp
 
 Create a task:
 ```
-$ $SNAP_PATH/bin/snapctl task create -t processes-file.json
+$ $SNAP_PATH/bin/snapctl task create -t examples/tasks/processes-file.json
 ```
 
 If you would like to collect all metrics exposed by this plugin, set `/intel/procfs/processes/*` as a metric to collect in task manifest.
