@@ -42,7 +42,7 @@ const (
 	// fs is proc filesystem
 	fs = "procfs"
 	//version of plugin
-	version = 5
+	version = 6
 )
 
 var (
