@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
 )
 
@@ -65,29 +66,47 @@ type Proc struct {
 // GetStats returns processes statistics
 func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
+	//log.SetOutput(os.Stderr)
 	if err != nil {
 		return nil, err
 	}
 	procs := map[string][]Proc{}
 	for _, file := range files {
+
 		// process only PID sub dirs
 		if pid, err := strconv.Atoi(file.Name()); err == nil {
 			// get proc/<pid>/stat data
 			fstat := filepath.Join(procPath, file.Name(), procStat)
 			procStat, err := ioutil.ReadFile(fstat)
 			if err != nil {
-				return nil, err
+				log.WithFields(log.Fields{
+					"pid":   pid,
+					"file":  fstat,
+					"error": err,
+				}).Errorf("Cannot get status information about the process")
+				continue
 			}
 			// get proc/<pid>/cmdline data
 			fcmd := filepath.Join(procPath, file.Name(), procCmd)
 			procCmdLine, err := ioutil.ReadFile(fcmd)
 			if err != nil {
-				return nil, err
+				log.WithFields(log.Fields{
+					"pid":   pid,
+					"file":  fcmd,
+					"error": err,
+				}).Errorf("Cannot get command line for the process")
+				continue
 			}
 			// get proc/<pid>/io data
-			procIo, err := read2Map(filepath.Join(procPath, file.Name(), procIO))
+			fio := filepath.Join(procPath, file.Name(), procIO)
+			procIo, err := read2Map(fio)
 			if err != nil {
-				return nil, err
+				log.WithFields(log.Fields{
+					"pid":   pid,
+					"file":  fio,
+					"error": err,
+				}).Errorf("Cannot get I/O statistics for the process")
+				continue
 			}
 			// get proc/<pid>/status data
 			var pStatus map[string]uint64
@@ -98,9 +117,15 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 				vmData = 0
 				vmCode = 0
 			} else {
-				pStatus, err = read2Map(filepath.Join(procPath, file.Name(), procStatus))
+				fstatus := filepath.Join(procPath, file.Name(), procStatus)
+				pStatus, err = read2Map(fstatus)
 				if err != nil {
-					return nil, err
+					log.WithFields(log.Fields{
+						"pid":   pid,
+						"file":  fstatus,
+						"error": err,
+					}).Errorf("Cannot get status information for the process")
+					continue
 				}
 				vmData = pStatus["VmData"] * 1024
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024

@@ -42,7 +42,7 @@ const (
 	// fs is proc filesystem
 	fs = "procfs"
 	//version of plugin
-	version = 5
+	version = 6
 )
 
 var (
@@ -185,7 +185,7 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 	if err != nil {
 		return nil, serror.New(err)
 	}
-	// calculate number of proces in each state
+	// calculate number of processes in each state
 	for _, instances := range stats {
 		for _, instance := range instances {
 			stateName := States[instance.State]
