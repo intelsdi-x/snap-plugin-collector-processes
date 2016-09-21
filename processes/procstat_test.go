@@ -1,4 +1,4 @@
-// +build small
+// +build unit
 
 /*
 http://www.apache.org/licenses/LICENSE-2.0.txt
@@ -122,8 +122,8 @@ func TestGetStats(t *testing.T) {
 			os.Remove(fileToRemove)
 			results, err := dut.GetStats(mockPath)
 
-			So(err, ShouldNotBeNil)
-			So(results, ShouldBeEmpty)
+			So(err, ShouldBeNil)
+			So(results, ShouldNotBeEmpty)
 		}
 	})
 

@@ -314,7 +314,7 @@ func setProcMetrics(instances []Proc) map[string]uint64 {
 }
 
 func fillNsElement(element *core.NamespaceElement, value string) core.NamespaceElement {
-	return core.NamespaceElement{value, element.Description, element.Name}
+	return core.NamespaceElement{Value: value, Description: element.Description, Name: element.Name}
 }
 
 // procPlugin holds host name and reference to metricCollector which has method of GetStats()
