@@ -42,7 +42,7 @@ const (
 	// fs is proc filesystem
 	fs = "procfs"
 	//version of plugin
-	version = 6
+	version = 7
 )
 
 var (
@@ -166,6 +166,11 @@ func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	return cp, nil
 }
 
+// helper structure used to avoid duplicate metrics
+type metricKey struct {
+	Proc, Stat string
+}
+
 // CollectMetrics retrieves values for given metrics types
 func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
 	metrics := []plugin.MetricType{}
@@ -192,20 +197,34 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 			stateCount[stateName]++
 		}
 	}
+
+	// accumulate stats
+	accumulated := map[string]map[string]uint64{}
+	for procName, instances := range stats {
+		acc := setProcMetrics(instances)
+		accumulated[procName] = acc
+	}
+
+	duplicatedStats := map[metricKey]struct{}{}
+
 	// calculate metrics
 	for _, metricType := range metricTypes {
 		ns := metricType.Namespace()
-		if len(ns) < 4 {
-			return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at least 4, is %d", len(ns)))
-		}
-
 		isDynamic, _ := ns.IsDynamic()
-		if isDynamic {
-			// ns[3] is wildcard for all processes
-			for procName, instances := range stats {
-				procMetrics := setProcMetrics(instances)
-				for procMet, val := range procMetrics {
-					if procMet == ns[4].Value {
+
+		if isDynamic && len(ns) == 5 {
+			reqProcName := ns[3].Value
+			metricName := ns[4].Value
+			if reqProcName == "*" {
+				// ns[3] is wildcard for all processes
+				for procName, accStats := range accumulated {
+					key := metricKey{Proc: procName, Stat: metricName}
+					if _, ok := duplicatedStats[key]; ok {
+						continue
+					}
+					duplicatedStats[key] = struct{}{}
+
+					if val, ok := accStats[metricName]; ok {
 						// change dynamic namespace element value (= "*") to current process name
 						// whole namespace stays dynamic (ns[3].Name != "")
 						nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
@@ -214,15 +233,46 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 							Namespace_:   nuns,
 							Data_:        val,
 							Timestamp_:   time.Now(),
-							Unit_:        metricNames[procMet].unit,
-							Description_: metricNames[procMet].description,
+							Unit_:        metricNames[metricName].unit,
+							Description_: metricNames[metricName].description,
 						}
 						metrics = append(metrics, metric)
+					} else {
+						return nil, serror.New(fmt.Errorf("Stat name {%s} not found!", metricName))
 					}
+
+				}
+			} else { // if reqProcName == "*"
+				key := metricKey{Proc: reqProcName, Stat: metricName}
+				if _, ok := duplicatedStats[key]; ok {
+					continue
+				}
+				duplicatedStats[key] = struct{}{}
+
+				metricName := ns[4].Value
+				accStats, found := accumulated[reqProcName]
+				if !found {
+					return nil, serror.New(fmt.Errorf("Process name {%s} not found!", reqProcName))
+				}
+				if val, ok := accStats[metricName]; ok {
+					// change dynamic namespace element value (= "*") to current process name
+					// whole namespace stays dynamic (ns[3].Name != "")
+					nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
+					nuns[3] = fillNsElement(&nuns[3], reqProcName)
+					metric := plugin.MetricType{
+						Namespace_:   nuns,
+						Data_:        val,
+						Timestamp_:   time.Now(),
+						Unit_:        metricNames[metricName].unit,
+						Description_: metricNames[metricName].description,
+					}
+					metrics = append(metrics, metric)
+				} else {
+					return nil, serror.New(fmt.Errorf("Stat name {%s} not found!", metricName))
 				}
 			}
-		} else if str.Contains(States.Values(), ns[3].Value) {
-			// ns[3] contains process state
+
+		} else if len(ns) == 4 && str.Contains(States.Values(), ns[3].Value) {
 			state := ns[3].Value
 			if val, ok := stateCount[state]; ok {
 				metric := plugin.MetricType{
@@ -233,32 +283,12 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 					Unit_:        "",
 				}
 				metrics = append(metrics, metric)
+			} else {
+				return nil, serror.New(fmt.Errorf("Unknown namespace."))
 			}
+
 		} else {
-			// ns[3] contains process name
-			if len(ns) != 5 {
-				return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at 5, is %d", len(ns)))
-			}
-			procName := ns[3].Value
-			metricName := ns[4].Value
-			instances, found := stats[procName]
-			if !found {
-				return nil, serror.New(fmt.Errorf("Process name {%s} not found!", procName))
-			}
-			procMetrics := setProcMetrics(instances)
-			for procMet, val := range procMetrics {
-				if metricName == procMet {
-					metric := plugin.MetricType{
-						Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, procName, procMet),
-						Data_:        val,
-						Timestamp_:   time.Now(),
-						Description_: metricNames[procMet].description,
-						Unit_:        metricNames[procMet].unit,
-					}
-					metrics = append(metrics, metric)
-					break
-				}
-			}
+			return nil, serror.New(fmt.Errorf("Unknown namespace."))
 		}
 	}
 
