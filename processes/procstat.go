@@ -57,7 +57,7 @@ type Proc struct {
 	Pid     int
 	State   string
 	CmdLine string
-	Cmd 	string
+	Cmd     string
 	Stat    []string
 	Io      map[string]uint64
 	VmData  uint64
@@ -71,7 +71,7 @@ func (psc *procStatsCollector) GetStats(procPath string) ([]Proc, error) {
 	if err != nil {
 		return nil, err
 	}
-	procs :=  make([]Proc, 0)
+	procs := make([]Proc, 0)
 	for _, file := range files {
 
 		// process only PID sub dirs
@@ -133,7 +133,7 @@ func (psc *procStatsCollector) GetStats(procPath string) ([]Proc, error) {
 			}
 			// TODO: gather task status data /proc/<pid>/task
 			cmdLine := string(procCmdLine)
-			cmdPath := strings.Split(strings.Split(cmdLine, "\x00")[0],"/")
+			cmdPath := strings.Split(strings.Split(cmdLine, "\x00")[0], "/")
 
 			pc := Proc{
 				Pid:     pid,
@@ -211,4 +211,3 @@ type unwanted struct {
 
 // for mocking
 type procStatsCollector struct{}
-
