@@ -57,6 +57,7 @@ type Proc struct {
 	Pid     int
 	State   string
 	CmdLine string
+	Cmd 	string
 	Stat    []string
 	Io      map[string]uint64
 	VmData  uint64
@@ -64,13 +65,13 @@ type Proc struct {
 }
 
 // GetStats returns processes statistics
-func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, error) {
+func (psc *procStatsCollector) GetStats(procPath string) ([]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
 	//log.SetOutput(os.Stderr)
 	if err != nil {
 		return nil, err
 	}
-	procs := map[string][]Proc{}
+	procs :=  make([]Proc, 0)
 	for _, file := range files {
 
 		// process only PID sub dirs
@@ -131,21 +132,20 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024
 			}
 			// TODO: gather task status data /proc/<pid>/task
+			cmdLine := string(procCmdLine)
+			cmdPath := strings.Split(strings.Split(cmdLine, "\x00")[0],"/")
+
 			pc := Proc{
 				Pid:     pid,
 				State:   strings.Fields(string(procStat))[2],
 				Stat:    strings.Fields(string(procStat)),
-				CmdLine: strings.Replace(string(procCmdLine), "\x00", " ", -1),
+				CmdLine: cmdLine,
+				Cmd:     cmdPath[len(cmdPath)-1],
 				Io:      procIo,
 				VmData:  vmData,
 				VmCode:  vmCode,
 			}
-			// tmpName begins and end with brackets, removing them
-			tmpName := strings.Fields(string(procStat))[1]
-			//procName := tmpName[1 : len(tmpName)-1]
-			procName := removeUnwantedChars(tmpName)
-			instances, _ := procs[procName]
-			procs[procName] = append(instances, pc)
+			procs = append(procs, pc)
 		}
 	}
 	return procs, nil
@@ -201,7 +201,7 @@ func removeUnwantedChars(str string) string {
 }
 
 type metricCollector interface {
-	GetStats(procPath string) (map[string][]Proc, error)
+	GetStats(procPath string) ([]Proc, error)
 }
 
 type unwanted struct {
@@ -211,3 +211,4 @@ type unwanted struct {
 
 // for mocking
 type procStatsCollector struct{}
+
