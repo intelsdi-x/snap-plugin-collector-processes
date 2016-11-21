@@ -1,6 +1,6 @@
-# snap plugin collector - processes
+# Snap plugin collector - processes
 
-snap plugin for collects information about process states grouped by name. Additionally it provides metrics for each running process, also grouped by name. 
+This plugin for [Snap Telemetry Framework](http://github.com/intelsdi-x/snap) collects information about process states grouped by name. Additionally it provides metrics for each running process, also grouped by name.
 
 1. [Getting Started](#getting-started)
   * [System Requirements](#system-requirements)
@@ -16,19 +16,17 @@ snap plugin for collects information about process states grouped by name. Addit
 6. [Acknowledgements](#acknowledgements)
 
 ## Getting Started
-
-Plugin collects specified metrics in-band on OS level
-
 ### System Requirements
 
- - Linux system with proc filesystem
+ - Linux (with proc filesystem)
 
 ### Installation
-#### Download processes plugin binary:
-You can get the pre-built binaries for your OS and architecture at snap's [Github Releases](https://github.com/intelsdi-x/snap/releases) page.
 
+#### Download the plugin binary:
+
+You can get the pre-built binaries for your OS and architecture from the plugin's [GitHub Releases](https://github.com/intelsdi-x/snap-plugin-collector-processes/releasess) page. Download the plugin from the latest release and load it into `snapd` (`/opt/snap/plugins` is the default location for Snap packages).
 #### To build the plugin binary:
-Fork https://github.com/intelsdi-x/snap-plugin-collector-processes
+Use https://github.com/intelsdi-x/snap-plugin-collector-processes or your fork as repo.
 
 Clone repo into `$GOPATH/src/github/intelsdi-x/`:
 ```
@@ -38,82 +36,74 @@ Build the plugin by running make in repo:
 ```
 $ make
 ```
-This builds the plugin in `/build/rootfs`
+This builds the plugin in `./build/`
 
 ### Configuration and Usage
-* Set up the [snap framework](https://github.com/intelsdi-x/snap/blob/master/README.md#getting-started).
+* Set up the [Snap framework](https://github.com/intelsdi-x/snap/blob/master/README.md#getting-started).
 * Load the plugin and create a task, see example in [Examples](https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/README.md#examples).
 
+Configuration parameters:
+
+- `proc_path`: path to procfs (default: `/proc`)
+
 ## Documentation
+
+This collector gathers metrics from proc file system. The configuration `proc_path` determines where the plugin obtains these metrics, with a default setting of `/proc`. This setting is only required to obtain data from a docker container that mounts the host `/proc` in an alternative path.
 
 ### Collected Metrics
 List of collected metrics is described in [METRICS.md](https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/METRICS.md).
 
 ### Examples
 
-Example running snap-plugin-collector-processes plugin and writing data to a file.
+Example of running Snap processes collector and writing data to file.
 
-Make sure that your `$SNAP_PATH` is set, if not:
-```
-$ export SNAP_PATH=<snapDirectoryPath>/build
-```
+Ensure [Snap daemon is running](https://github.com/intelsdi-x/snap#running-snap):
+* initd: `service snap-telemetry start`
+* systemd: `systemctl start snap-telemetry`
+* command line: `snapd -l 1 -t 0 &`
 
-Other paths to files should be set according to your configuration, using a file you should indicate where it is located.
-
-In one terminal window, open the snap daemon (in this case with logging set to 1,  trust disabled):
+Download and load snap plugins:
 ```
-$ $SNAP_PATH/bin/snapd -l 1 -t 0
-```
-In another terminal window:
-
-Load snap-plugin-collector-processes plugin:
-```
-$ $SNAP_PATH/bin/snapctl plugin load snap-plugin-collector-processes
-```
-Load mock-file plugin for publishing:
-```
-$ $SNAP_PATH/bin/snapctl plugin load $SNAP_PATH/plugin/snap-plugin-publisher-mock-file
+$ wget http://snap.ci.snap-telemetry.io/plugins/snap-plugin-collector-processes/latest/linux/x86_64/snap-plugin-collector-processes
+$ wget http://snap.ci.snap-telemetry.io/plugins/snap-plugin-publisher-file/latest/linux/x86_64/snap-plugin-publisher-file
+$ snapctl plugin load snap-plugin-collector-processes
+$ snapctl plugin load snap-plugin-publisher-file
 ```
 See available metrics for your system:
 ```
-$ $SNAP_PATH/bin/snapctl metric list
+$ snapctl metric list
+NAMESPACE                                              VERSIONS
+/intel/procfs/processes/running                        7
+/intel/procfs/processes/sleeping                       7
+/intel/procfs/processes/waiting                        7
+/intel/procfs/processes/zombie                         7
+/intel/procfs/processes/stopped                        7
+/intel/procfs/processes/tracing                        7
+/intel/procfs/processes/dead                           7
+/intel/procfs/processes/wakekill                       7
+/intel/procfs/processes/waking                         7
+/intel/procfs/processes/parked                         7
+/intel/procfs/processes/*/ps_vm                        7
+/intel/procfs/processes/*/ps_rss                       7
+/intel/procfs/processes/*/ps_data                      7
+/intel/procfs/processes/*/ps_code                      7
+/intel/procfs/processes/*/ps_stacksize                 7
+/intel/procfs/processes/*/ps_cputime_user              7
+/intel/procfs/processes/*/ps_cputime_system            7
+/intel/procfs/processes/*/ps_pagefaults_min            7
+/intel/procfs/processes/*/ps_pagefaults_maj            7
+/intel/procfs/processes/*/ps_disk_ops_syscr            7
+/intel/procfs/processes/*/ps_disk_ops_syscw            7
+/intel/procfs/processes/*/ps_disk_octets_rchar         7
+/intel/procfs/processes/*/ps_disk_octets_wchar         7
+/intel/procfs/processes/*/ps_count                     7
 ```
 
-Create a task manifest file to use snap-plugin-collector-processes plugin (exemplary files in [examples/tasks/] (examples/tasks/)):
-```
-{
-    "version": 1,
-    "schedule": {
-        "type": "simple",
-        "interval": "1s"
-    },
-    "workflow": {
-        "collect": {
-            "metrics": {
-                "/intel/procfs/processes/*/ps_disk_ops_syscr": {},
-                "/intel/procfs/processes/*/ps_disk_ops_syscw": {},
-                "/intel/procfs/processes/running": {},
-                "/intel/procfs/processes/stopped": {},
-                "/intel/procfs/processes/waiting": {}
-            },
-            "publish": [
-                {
-                    "plugin_name": "mock-file",
-                    "config": {
-                        "file": "/tmp/published_processes.log"
-                    }
-                }
-            ],
-            "config": null
-        }
-    }
-}
 
+Download an [example task file](https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/examples/tasks/) and load it:
 ```
-
-Create a task:
-```
-$ $SNAP_PATH/bin/snapctl task create -t examples/tasks/processes-file.json
+$ curl -sfLO https://raw.githubusercontent.com/intelsdi-x/snap-plugin-collector-processes/master/examples/tasks/processes-file.json
+$ snapctl task create -t processes-file.json
 ```
 
 If you would like to collect all metrics exposed by this plugin, set `/intel/procfs/processes/*` as a metric to collect in task manifest.
@@ -126,21 +116,20 @@ As we launch this plugin, we have a few items in mind for the next release:
 If you have a feature request, please add it as an [issue](https://github.com/intelsdi-x/snap-plugin-collector-processes/issues/new) and/or submit a [pull request](https://github.com/intelsdi-x/snap-plugin-collector-processes/pulls).
 
 ## Community Support
-This repository is one of **many** plugins in **snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap.
+This repository is one of **many** plugins in **Snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap.
 
-To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support) or visit [snap Gitter channel](https://gitter.im/intelsdi-x/snap).
+To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support) or visit [Slack](http://slack.snap-telemetry.io).
 
 ## Contributing
 We love contributions!
 
 There's more than one way to give back, from examples to blogs to code updates. See our recommended process in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-And **thank you!** Your contribution, through code and participation, is incredibly important to us.
-
 ## License
-[snap](http://github.com/intelsdi-x/snap), along with this plugin, is an Open Source software released under the Apache 2.0 [License](LICENSE).
-
+Snap, along with this plugin, is an Open Source software released under the Apache 2.0 [License](LICENSE).
 ## Acknowledgements
 
 * Author: [Marcin Krolik](https://github.com/marcin-krolik)
 * Co-author: [Izabella Raulin](https://github.com/IzabellaRaulin)
+
+**Thank you!** Your contribution is incredibly important to us.
