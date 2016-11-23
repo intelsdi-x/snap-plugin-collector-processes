@@ -24,7 +24,7 @@ This plugin for [Snap Telemetry Framework](http://github.com/intelsdi-x/snap) co
 
 #### Download the plugin binary:
 
-You can get the pre-built binaries for your OS and architecture from the plugin's [GitHub Releases](https://github.com/intelsdi-x/snap-plugin-collector-processes/releasess) page. Download the plugin from the latest release and load it into `snapd` (`/opt/snap/plugins` is the default location for Snap packages).
+You can get the pre-built binaries for your OS and architecture from the plugin's [GitHub Releases](https://github.com/intelsdi-x/snap-plugin-collector-processes/releasess) page. Download the plugin from the latest release and load it into `snapteld` (`/opt/snap/plugins` is the default location for Snap packages).
 #### To build the plugin binary:
 Use https://github.com/intelsdi-x/snap-plugin-collector-processes or your fork as repo.
 
@@ -60,18 +60,18 @@ Example of running Snap processes collector and writing data to file.
 Ensure [Snap daemon is running](https://github.com/intelsdi-x/snap#running-snap):
 * initd: `service snap-telemetry start`
 * systemd: `systemctl start snap-telemetry`
-* command line: `snapd -l 1 -t 0 &`
+* command line: `snapteld -l 1 -t 0 &`
 
 Download and load snap plugins:
 ```
 $ wget http://snap.ci.snap-telemetry.io/plugins/snap-plugin-collector-processes/latest/linux/x86_64/snap-plugin-collector-processes
 $ wget http://snap.ci.snap-telemetry.io/plugins/snap-plugin-publisher-file/latest/linux/x86_64/snap-plugin-publisher-file
-$ snapctl plugin load snap-plugin-collector-processes
-$ snapctl plugin load snap-plugin-publisher-file
+$ snaptel plugin load snap-plugin-collector-processes
+$ snaptel plugin load snap-plugin-publisher-file
 ```
 See available metrics for your system:
 ```
-$ snapctl metric list
+$ snaptel metric list
 NAMESPACE                                              VERSIONS
 /intel/procfs/processes/running                        7
 /intel/procfs/processes/sleeping                       7
@@ -103,7 +103,7 @@ NAMESPACE                                              VERSIONS
 Download an [example task file](https://github.com/intelsdi-x/snap-plugin-collector-processes/blob/master/examples/tasks/) and load it:
 ```
 $ curl -sfLO https://raw.githubusercontent.com/intelsdi-x/snap-plugin-collector-processes/master/examples/tasks/processes-file.json
-$ snapctl task create -t processes-file.json
+$ snaptel task create -t processes-file.json
 ```
 
 If you would like to collect all metrics exposed by this plugin, set `/intel/procfs/processes/*` as a metric to collect in task manifest.
