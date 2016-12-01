@@ -14,10 +14,14 @@
                 "/intel/procfs/processes/waiting": {}
             },
             "publish": [
-                {
-                    "plugin_name": "file",
+		{
+                    "plugin_name": "influxdb",
                     "config": {
-                        "file": "/tmp/published_processes.log"
+                        "host": "localhost",
+                        "port": 8086,
+                        "database": "test",
+                        "user": "admin",
+                        "password": "admin"
                     }
                 }
             ],
