@@ -3,7 +3,7 @@ sudo: true
 language: go
 go:
 - 1.6.3
-- 1.7.1
+- 1.7.3
 env:
   global:
   - ORG_PATH=/home/travis/gopath/src/github.com/intelsdi-x
@@ -42,7 +42,7 @@ deploy:
   on:
     repo: intelsdi-x/snap-plugin-collector-processes
     branch: master
-    condition: $TEST_TYPE = "build" && $TRAVIS_GO_VERSION = "1.7.1"
+    condition: $TEST_TYPE = "build" && $TRAVIS_GO_VERSION = "1.7.3"
 - provider: s3
   access_key_id: AKIAINMB43VSSPFZISAA
   secret_access_key:
@@ -56,7 +56,7 @@ deploy:
   on:
     repo: intelsdi-x/snap-plugin-collector-processes
     tags: true
-    condition: $TEST_TYPE = "build" && $TRAVIS_GO_VERSION = "1.7.1"
+    condition: $TEST_TYPE = "build" && $TRAVIS_GO_VERSION = "1.7.3"
 - provider: releases
   api_key:
     secure: SE6vXR6+9xQscO6sZ5VRfsYI792WOs4ReqZAC8dufExu1RqJI/zYkRmK5gTL/Q95qMgcnepthotLBXKWQYw7ymPiG+pAB4qvttU75RH2+7G3Nj3TGR5iqt5BBEAY2gqQmoC8jGKb5Wu7TvpNS8qU7oia8Mta0LPIstUQHwyfMzZGhIxpC09w+HMKfZNTSrYgVQKvncOfDE2QMCqrDdFdl2FkOw6pTGsgVRvFVEeYEVROVu98/0WqVNc7R4/va4N76cj5Yni2uIlcQIMDuIpbl7Pw7f2woTInw4qzeMN3+itydUXXYC72somo1UmJ9YPLpPGkIbSF2TvDvMoD2OsVGtAllr1V9akxeIaJRGGSveiYyuv+LNZzkdBVAovrplw8N+QPazYvcJeWsvz1H107TMvnYrmfBVjQ+eUh6S5QxTymMBA0ureMlqnpbM9B7MursqXgL0XeemoCIBadFtA/K17sIj3LvKNBfQrSGsyJ7LAMDm8+ZnEhxfSQQmgvfhek/JJW9f6Qn1BTdaPXHl9pIyccOd3FEhmVjCn2Tyv8dJmRpDSPeVhuLzIZoDz0KZfEAMuegV4zBfhQEYxz/YqkVL2/vx5E38G4ZRRJxJh5tCOIXLNdsssd65oNGP2bjiQO2nADgWBmg6o+Nk4MEqhdYH6/1Y9U5llpUwQVfHe2YR4=
@@ -66,4 +66,4 @@ deploy:
   on:
     repo: intelsdi-x/snap-plugin-collector-processes
     tags: true
-    condition: $TEST_TYPE = "build" && $TRAVIS_GO_VERSION = "1.7.1"
+    condition: $TEST_TYPE = "build" && $TRAVIS_GO_VERSION = "1.7.3"
