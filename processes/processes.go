@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/intelsdi-x/snap/control/plugin"
@@ -32,7 +33,6 @@ import (
 
 	"github.com/intelsdi-x/snap-plugin-utilities/config"
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
-	"strings"
 )
 
 const (
