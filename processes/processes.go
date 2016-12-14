@@ -218,9 +218,9 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 							// change dynamic namespace element value (= "*") to current process name
 							// whole namespace stays dynamic (ns[3].Name != "")
 							nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
-							nuns[4] = fillNsElement(&nuns[3], proc)
+							nuns[4].Value = strconv.Itoa(proc.Pid)
 							cmdPath := strings.Split(strings.Split(proc.CmdLine, "\x00")[0], "/")
-							nuns[5] = cmdPath[len(cmdPath)-1]
+							nuns[5].Value = cmdPath[len(cmdPath)-1]
 							metric := plugin.MetricType{
 								Namespace_:   nuns,
 								Data_:        val,
