@@ -20,10 +20,8 @@ limitations under the License.
 package main
 
 import (
-	"os"
-
 	"github.com/intelsdi-x/snap-plugin-collector-processes/processes"
-	"github.com/intelsdi-x/snap/control/plugin"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 )
 
 func main() {
@@ -32,9 +30,5 @@ func main() {
 		panic("Failed to initialize plugin\n")
 	}
 
-	plugin.Start(
-		processes.Meta(),
-		procPlg,
-		os.Args[1],
-	)
+	plugin.StartCollector(procPlg, processes.PluginName, processes.PluginVersion)
 }

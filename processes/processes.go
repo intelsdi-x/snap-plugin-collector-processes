@@ -20,30 +20,25 @@ limitations under the License.
 package processes
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/serror"
-
-	"github.com/intelsdi-x/snap-plugin-utilities/config"
-	"github.com/intelsdi-x/snap-plugin-utilities/str"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
+	"strings"
 )
 
 const (
 	//plugin name
-	pluginName = "processes"
+	PluginName = "processes"
 	//plugin vendor
-	pluginVendor = "intel"
+	PluginVendor = "intel"
 	// fs is proc filesystem
 	fs = "procfs"
 	//version of plugin
-	version = 8
+	PluginVersion = 8
 )
 
 var (
@@ -113,6 +108,7 @@ var (
 
 // New returns instance of processes plugin
 func New() *procPlugin {
+
 	host, err := os.Hostname()
 	if err != nil {
 		host = "localhost"
@@ -121,41 +117,36 @@ func New() *procPlugin {
 	return &procPlugin{host: host, mc: &procStatsCollector{}}
 }
 
-// Meta returns plugin meta data
-func Meta() *plugin.PluginMeta {
-	return plugin.NewPluginMeta(
-		pluginName,
-		version,
-		plugin.CollectorPluginType,
-		[]string{},
-		[]string{plugin.SnapGOBContentType},
-		plugin.ConcurrencyCount(1),
-	)
-}
-
 // GetMetricTypes returns list of available metrics
-func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
-	metricTypes := []plugin.MetricType{}
+func (procPlg *procPlugin) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
+	metricTypes := []plugin.Metric{}
 	// build metric types from process metric names
 	for metricName, label := range metricNames {
-		metricType := plugin.MetricType{
-			Namespace_: core.NewNamespace(pluginVendor, fs, pluginName, "pid").
+		metricType := plugin.Metric{
+			Namespace: plugin.NewNamespace(PluginVendor, fs, PluginName, "pid").
 				AddDynamicElement("process_id", "pid of the running process").
-				AddDynamicElement("process_name", "name of the running process").
-				AddStaticElements(metricName),
-			Config_:      cfg.ConfigDataNode,
-			Description_: label.description,
-			Unit_:        label.unit,
+				AddStaticElement(metricName),
+			Description: label.description,
+			Unit:        label.unit,
 		}
 		metricTypes = append(metricTypes, metricType)
+		metricType2 := plugin.Metric{
+			Namespace: plugin.NewNamespace(PluginVendor, fs, PluginName, "name").
+				AddDynamicElement("name", "name of the running process").
+				AddDynamicElement("process_id", "pid of the running process").
+				AddStaticElement(metricName),
+			Description: label.description,
+			Unit:        label.unit,
+		}
+		metricTypes = append(metricTypes, metricType2)
+
 	}
 	// build metric types from process states
 	for _, state := range States.Values() {
-		metricType := plugin.MetricType{
-			Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, state),
-			Config_:      cfg.ConfigDataNode,
-			Description_: fmt.Sprintf("Number of processes in %s state", state),
-			Unit_:        "",
+		metricType := plugin.Metric{
+			Namespace:   plugin.NewNamespace(PluginVendor, fs, PluginName, "stats", state),
+			Description: fmt.Sprintf("Number of processes in %s state", state),
+			Unit:        "",
 		}
 		metricTypes = append(metricTypes, metricType)
 	}
@@ -163,21 +154,25 @@ func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metri
 }
 
 // GetConfigPolicy returns config policy
-func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	cp := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
-	node := cpolicy.NewPolicyNode()
-	node.Add(rule)
-	cp.Add([]string{pluginVendor, fs, pluginName}, node)
-	return cp, nil
+func (procPlg *procPlugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	policy := plugin.NewConfigPolicy()
+	configKey := []string{PluginVendor, fs, PluginName}
+	policy.AddNewStringRule(configKey, "proc_path", false, plugin.SetDefaultString("/proc"))
+	policy.AddNewBoolRule(configKey, "include_system_processes", false, plugin.SetDefaultBool(false))
+	return *policy, nil
 }
 
 // CollectMetrics retrieves values for given metrics types
-func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
-	metrics := []plugin.MetricType{}
+func (procPlg *procPlugin) CollectMetrics(metric []plugin.Metric) ([]plugin.Metric, error) {
+	metrics := []plugin.Metric{}
 	stateCount := map[string]int{}
 
-	procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
+	//procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
+	procPath, err := metric[0].Config.GetString("proc_path")
+	if err != nil {
+		return nil, err
+	}
+	isp, err := metric[0].Config.GetBool("include_system_processes")
 	if err != nil {
 		return nil, err
 	}
@@ -187,11 +182,11 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 	for _, state := range States.Values() {
 		stateCount[state] = 0
 	}
-
+	timestamp := time.Now()
 	// get all proc stats
-	stats, err := procPlg.mc.GetStats(procPath.(string))
+	stats, err := procPlg.mc.GetStats(procPath, isp)
 	if err != nil {
-		return nil, serror.New(err)
+		return nil, err
 	}
 	// calculate number of processes in each state
 
@@ -201,53 +196,65 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 	}
 
 	// calculate metrics
-	for _, metricType := range metricTypes {
-		ns := metricType.Namespace()
+	for _, metric := range metric {
+		ns := metric.Namespace
 		if len(ns) < 4 {
-			return nil, serror.New(fmt.Errorf("Unknown namespace length. Expecting at least 4, is %d", len(ns)))
+			return nil, errors.New("Unknown namespace length. Expecting at least 4, is " + strconv.Itoa(len(ns)))
 		}
 
 		isDynamic, _ := ns.IsDynamic()
 		if isDynamic {
-			//pid and name is dynamic = all
-			if ns[4].IsDynamic() && ns[5].IsDynamic() {
-				for _, proc := range stats {
-					procMetrics := setProcMetrics(proc)
-					for procMet, val := range procMetrics {
-						if procMet == ns[6].Value {
-							// change dynamic namespace element value (= "*") to current process name
-							// whole namespace stays dynamic (ns[3].Name != "")
-							nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
-							nuns[4].Value = strconv.Itoa(proc.Pid)
-							cmdPath := strings.Split(strings.Split(proc.CmdLine, "\x00")[0], "/")
-							nuns[5].Value = cmdPath[len(cmdPath)-1]
-							metric := plugin.MetricType{
-								Namespace_:   nuns,
-								Data_:        val,
-								Timestamp_:   time.Now(),
-								Unit_:        metricNames[procMet].unit,
-								Description_: metricNames[procMet].description,
+			for _, proc := range stats {
+				procMetrics := setProcMetrics(proc)
+				for procMet, val := range procMetrics {
+					switch ns[3].Value {
+					//[0][1][2] = /intel/procfs/processes, [3] = "pid", [4] = <pid>, [5] = metric name
+					case "pid":
+						if procMet == ns[5].Value {
+							//nuns := plugin.Namespace(append([]plugin.NamespaceElement{}, ns...))
+							nsClone := make([]plugin.NamespaceElement, len(ns))
+							copy(nsClone, ns)
+							nsClone[4].Value = strconv.Itoa(proc.Pid)
+							newMetric := plugin.Metric{
+								Namespace:   nsClone,
+								Data:        val,
+								Timestamp:   timestamp,
+								Unit:        metricNames[procMet].unit,
+								Description: metricNames[procMet].description,
 							}
-							metrics = append(metrics, metric)
+							metrics = append(metrics, newMetric)
+
+						}
+					case "name":
+						if procMet == ns[6].Value {
+							//nuns := plugin.Namespace(append([]plugin.NamespaceElement{}, ns...))
+							nsClone := make([]plugin.NamespaceElement, len(ns))
+							copy(nsClone, ns)
+							nsClone[4].Value = removeUnwantedChars(proc.Cmd)
+							nsClone[5].Value = strconv.Itoa(proc.Pid)
+							newMetric := plugin.Metric{
+								Namespace:   nsClone,
+								Data:        val,
+								Timestamp:   timestamp,
+								Unit:        metricNames[procMet].unit,
+								Description: metricNames[procMet].description,
+							}
+							metrics = append(metrics, newMetric)
+
 						}
 					}
 				}
-				// only pid dynamic
-			} else if ns[4].IsDynamic() {
-				// only name dynamic
-			} else {
-
 			}
-		} else if str.Contains(States.Values(), ns[3].Value) {
+		} else if contains(States.Values(), ns[4].Value) {
 			// ns[3] contains process state
-			state := ns[3].Value
+			state := ns[4].Value
 			if val, ok := stateCount[state]; ok {
-				metric := plugin.MetricType{
-					Namespace_:   ns,
-					Data_:        val,
-					Timestamp_:   time.Now(),
-					Description_: fmt.Sprintf("Number of processes in %s state", state),
-					Unit_:        "",
+				metric := plugin.Metric{
+					Namespace:   ns,
+					Data:        val,
+					Timestamp:   timestamp,
+					Description: fmt.Sprintf("Number of processes in %s state", state),
+					Unit:        "",
 				}
 				metrics = append(metrics, metric)
 			}
@@ -306,10 +313,6 @@ func setProcMetrics(proc Proc) map[string]interface{} {
 	return procMetrics
 }
 
-func fillNsElement(element *core.NamespaceElement, value string) core.NamespaceElement {
-	return core.NamespaceElement{Value: value, Description: element.Description, Name: element.Name}
-}
-
 // procPlugin holds host name and reference to metricCollector which has method of GetStats()
 type procPlugin struct {
 	host string
@@ -319,4 +322,28 @@ type procPlugin struct {
 type label struct {
 	description string
 	unit        string
+}
+
+func contains(s []string, v string) bool {
+	for _, a := range s {
+		if a == v {
+			return true
+		}
+	}
+	return false
+}
+
+func removeUnwantedChars(str string) string {
+	unwanteds := []unwanted{
+		{"[", ""},
+		{"]", ""},
+		{"(", ""},
+		{")", ""},
+		{"/", "."},
+		{"\\", ""},
+	}
+	for _, unw := range unwanteds {
+		str = strings.Replace(str, unw.char, unw.repl, -1)
+	}
+	return str
 }

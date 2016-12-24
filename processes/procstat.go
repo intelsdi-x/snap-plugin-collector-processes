@@ -65,7 +65,7 @@ type Proc struct {
 }
 
 // GetStats returns processes statistics
-func (psc *procStatsCollector) GetStats(procPath string) ([]Proc, error) {
+func (psc *procStatsCollector) GetStats(procPath string, isp bool) ([]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
 	//log.SetOutput(os.Stderr)
 	if err != nil {
@@ -133,19 +133,31 @@ func (psc *procStatsCollector) GetStats(procPath string) ([]Proc, error) {
 			}
 			// TODO: gather task status data /proc/<pid>/task
 			cmdLine := string(procCmdLine)
-			cmdPath := strings.Split(strings.Split(cmdLine, "\x00")[0], "/")
-
-			pc := Proc{
-				Pid:     pid,
-				State:   strings.Fields(string(procStat))[2],
-				Stat:    strings.Fields(string(procStat)),
-				CmdLine: cmdLine,
-				Cmd:     cmdPath[len(cmdPath)-1],
-				Io:      procIo,
-				VmData:  vmData,
-				VmCode:  vmCode,
+			//			cmdPath := strings.Split(strings.Split(cmdLine, "\x00")[0], "/")
+			cmdPath := strings.Split(cmdLine, "\x00")[0]
+			var cmd string
+			if strings.Contains(cmdPath, "[") && strings.Contains(cmdPath, "]") {
+				cmd = strings.Split(cmdPath, " ")[0]
+			} else {
+				s := strings.Split(cmdPath, "/")
+				cmd = s[len(s)-1]
 			}
-			procs = append(procs, pc)
+			if isp || len(cmd) > 0 {
+				pc := Proc{
+					Pid:     pid,
+					State:   strings.Fields(string(procStat))[2],
+					Stat:    strings.Fields(string(procStat)),
+					CmdLine: cmdLine,
+					Cmd:     cmd,
+					Io:      procIo,
+					VmData:  vmData,
+					VmCode:  vmCode,
+				}
+				if len(pc.Cmd) == 0 {
+					pc.Cmd = strings.Fields(string(procStat))[1]
+				}
+				procs = append(procs, pc)
+			}
 		}
 	}
 	return procs, nil
@@ -185,23 +197,8 @@ func read2Map(fileName string) (map[string]uint64, error) {
 	return stats, nil
 }
 
-func removeUnwantedChars(str string) string {
-	unwanteds := []unwanted{
-		{"[", ""},
-		{"]", ""},
-		{"(", ""},
-		{")", ""},
-		{"/", "."},
-		{"\\", ""},
-	}
-	for _, unw := range unwanteds {
-		str = strings.Replace(str, unw.char, unw.repl, -1)
-	}
-	return str
-}
-
 type metricCollector interface {
-	GetStats(procPath string) ([]Proc, error)
+	GetStats(procPath string, isp bool) ([]Proc, error)
 }
 
 type unwanted struct {
