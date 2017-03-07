@@ -1,6 +1,6 @@
 package: github.com/intelsdi-x/snap-plugin-collector-processes
 import:
 - package: github.com/intelsdi-x/snap
-  version: dbbb1ae3ef7282ac02bd6e14ef44d93fb7c9e85b
+  version: ^1.0.0
 - package: github.com/intelsdi-x/snap-plugin-utilities
   version: 3c37e3965f3fc2f24714779d3bae7ba7032b87a9
