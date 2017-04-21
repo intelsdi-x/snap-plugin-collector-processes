@@ -38,14 +38,10 @@ import (
 const (
 	mockProcName = "NetworkManager"
 	mockProcPid  = 815
-
-	mockProcName2 = "fake"
-	mockProcPid2  = 315
 )
 
 var (
-	mockProc  = makeMockProc(mockProcName, mockProcPid)
-	mockProc2 = makeMockProc(mockProcName, mockProcPid)
+	mockProc = makeMockProc(mockProcName, mockProcPid)
 )
 
 type mcMock struct {
@@ -149,15 +145,7 @@ func TestCollectMetrics(t *testing.T) {
 				Namespace_: core.NewNamespace("intel", "procfs", "processes", "zombie"),
 				Config_:    cfg.ConfigDataNode,
 			},
-
-			plugin.MetricType{
-				Namespace_: core.NewNamespace("intel", "procfs", "processes").
-					AddDynamicElement("process_name", "process name").
-					AddStaticElement("ps_count"),
-			},
 		}
-
-		mockMts[len(mockMts)-1].Namespace_[3].Value = "fake"
 
 		Convey("new processes collector", func() {
 			So(procPlugin, ShouldNotBeNil)
@@ -181,7 +169,6 @@ func TestCollectMetrics(t *testing.T) {
 
 			mc.On("GetStats").Return(map[string][]Proc{
 				"NetworkManager": []Proc{mockProc},
-				"fake":           []Proc{mockProc2},
 			}, nil)
 
 			Convey("when names of collect metrics are valid", func() {
@@ -203,8 +190,8 @@ func TestCollectMetrics(t *testing.T) {
 				})
 
 				So(err, ShouldBeNil)
-				// 2 metrics exposed by processes
-				So(len(results), ShouldEqual, 2)
+				// 1 metric exposed by process
+				So(len(results), ShouldEqual, 1)
 
 				for _, r := range results {
 					ns := r.Namespace()
@@ -222,8 +209,8 @@ func TestCollectMetrics(t *testing.T) {
 				results, err := procPlugin.CollectMetrics(mockMtsWithAsterisk)
 
 				So(err, ShouldBeNil)
-				// 2 dynamic metrics exposed by processes + 10 status metrics defined in mockMts
-				So(len(results), ShouldEqual, 12)
+				// 14 dynamic metrics exposed by process + 10 status metrics defined in mockMts
+				So(len(results), ShouldEqual, 11)
 			})
 
 			Convey("when name of collect metric is invalid", func() {
@@ -235,7 +222,7 @@ func TestCollectMetrics(t *testing.T) {
 				})
 
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "Unknown namespace")
+				So(err.Error(), ShouldContainSubstring, "Unknown namespace length")
 				So(results, ShouldBeEmpty)
 			})
 

@@ -20,29 +20,25 @@ limitations under the License.
 package processes
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/serror"
-
-	"github.com/intelsdi-x/snap-plugin-utilities/config"
-	"github.com/intelsdi-x/snap-plugin-utilities/str"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
+	"strings"
 )
 
 const (
 	//plugin name
-	pluginName = "processes"
+	PluginName = "processes"
 	//plugin vendor
-	pluginVendor = "intel"
+	PluginVendor = "intel"
 	// fs is proc filesystem
 	fs = "procfs"
 	//version of plugin
-	version = 7
+	PluginVersion = 8
 )
 
 var (
@@ -99,8 +95,12 @@ var (
 			description: "The number of bytes which this task has caused, or shall cause to be written to disk",
 			unit:        "B",
 		},
-		"ps_count": label{
-			description: "Number of process instances",
+		"ps_cmd_line": label{
+			description: "Process command line with full path and args",
+			unit:        "",
+		},
+		"ps_cmd": label{
+			description: "Process command line with full path",
 			unit:        "",
 		},
 	}
@@ -108,6 +108,7 @@ var (
 
 // New returns instance of processes plugin
 func New() *procPlugin {
+
 	host, err := os.Hostname()
 	if err != nil {
 		host = "localhost"
@@ -116,40 +117,36 @@ func New() *procPlugin {
 	return &procPlugin{host: host, mc: &procStatsCollector{}}
 }
 
-// Meta returns plugin meta data
-func Meta() *plugin.PluginMeta {
-	return plugin.NewPluginMeta(
-		pluginName,
-		version,
-		plugin.CollectorPluginType,
-		[]string{},
-		[]string{plugin.SnapGOBContentType},
-		plugin.ConcurrencyCount(1),
-	)
-}
-
 // GetMetricTypes returns list of available metrics
-func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
-	metricTypes := []plugin.MetricType{}
+func (procPlg *procPlugin) GetMetricTypes(_ plugin.Config) ([]plugin.Metric, error) {
+	metricTypes := []plugin.Metric{}
 	// build metric types from process metric names
 	for metricName, label := range metricNames {
-		metricType := plugin.MetricType{
-			Namespace_: core.NewNamespace(pluginVendor, fs, pluginName).
-				AddDynamicElement("process_name", "name of the running process").
-				AddStaticElements(metricName),
-			Config_:      cfg.ConfigDataNode,
-			Description_: label.description,
-			Unit_:        label.unit,
+		metricType := plugin.Metric{
+			Namespace: plugin.NewNamespace(PluginVendor, fs, PluginName, "pid").
+				AddDynamicElement("process_id", "pid of the running process").
+				AddStaticElement(metricName),
+			Description: label.description,
+			Unit:        label.unit,
 		}
 		metricTypes = append(metricTypes, metricType)
+		metricType2 := plugin.Metric{
+			Namespace: plugin.NewNamespace(PluginVendor, fs, PluginName, "name").
+				AddDynamicElement("name", "name of the running process").
+				AddDynamicElement("process_id", "pid of the running process").
+				AddStaticElement(metricName),
+			Description: label.description,
+			Unit:        label.unit,
+		}
+		metricTypes = append(metricTypes, metricType2)
+
 	}
 	// build metric types from process states
 	for _, state := range States.Values() {
-		metricType := plugin.MetricType{
-			Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, state),
-			Config_:      cfg.ConfigDataNode,
-			Description_: fmt.Sprintf("Number of processes in %s state", state),
-			Unit_:        "",
+		metricType := plugin.Metric{
+			Namespace:   plugin.NewNamespace(PluginVendor, fs, PluginName, "stats", state),
+			Description: fmt.Sprintf("Number of processes in %s state", state),
+			Unit:        "",
 		}
 		metricTypes = append(metricTypes, metricType)
 	}
@@ -157,194 +154,163 @@ func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metri
 }
 
 // GetConfigPolicy returns config policy
-func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	cp := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
-	node := cpolicy.NewPolicyNode()
-	node.Add(rule)
-	cp.Add([]string{pluginVendor, fs, pluginName}, node)
-	return cp, nil
-}
-
-// helper structure used to avoid duplicate metrics
-type metricKey struct {
-	Proc, Stat string
+func (procPlg *procPlugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	policy := plugin.NewConfigPolicy()
+	configKey := []string{PluginVendor, fs, PluginName}
+	policy.AddNewStringRule(configKey, "proc_path", false, plugin.SetDefaultString("/proc"))
+	policy.AddNewBoolRule(configKey, "include_system_processes", false, plugin.SetDefaultBool(false))
+	return *policy, nil
 }
 
 // CollectMetrics retrieves values for given metrics types
-func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
-	metrics := []plugin.MetricType{}
+func (procPlg *procPlugin) CollectMetrics(metric []plugin.Metric) ([]plugin.Metric, error) {
+	metrics := []plugin.Metric{}
 	stateCount := map[string]int{}
 
-	procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
+	//procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
+	procPath, err := metric[0].Config.GetString("proc_path")
+	if err != nil {
+		return nil, err
+	}
+	isp, err := metric[0].Config.GetBool("include_system_processes")
 	if err != nil {
 		return nil, err
 	}
 
 	// init stateCount map with keys from States
+
 	for _, state := range States.Values() {
 		stateCount[state] = 0
 	}
+	timestamp := time.Now()
 	// get all proc stats
-	stats, err := procPlg.mc.GetStats(procPath.(string))
+	stats, err := procPlg.mc.GetStats(procPath, isp)
 	if err != nil {
-		return nil, serror.New(err)
+		return nil, err
 	}
 	// calculate number of processes in each state
-	for _, instances := range stats {
-		for _, instance := range instances {
-			stateName := States[instance.State]
-			stateCount[stateName]++
-		}
-	}
 
-	// accumulate stats
-	accumulated := map[string]map[string]uint64{}
-	for procName, instances := range stats {
-		acc := setProcMetrics(instances)
-		accumulated[procName] = acc
+	for _, proc := range stats {
+		stateName := States[proc.State]
+		stateCount[stateName]++
 	}
-
-	duplicatedStats := map[metricKey]struct{}{}
 
 	// calculate metrics
-	for _, metricType := range metricTypes {
-		ns := metricType.Namespace()
+	for _, metric := range metric {
+		ns := metric.Namespace
+		if len(ns) < 4 {
+			return nil, errors.New("Unknown namespace length. Expecting at least 4, is " + strconv.Itoa(len(ns)))
+		}
+
 		isDynamic, _ := ns.IsDynamic()
+		if isDynamic {
+			for _, proc := range stats {
+				procMetrics := setProcMetrics(proc)
+				for procMet, val := range procMetrics {
+					switch ns[3].Value {
+					//[0][1][2] = /intel/procfs/processes, [3] = "pid", [4] = <pid>, [5] = metric name
+					case "pid":
+						if procMet == ns[5].Value {
+							//nuns := plugin.Namespace(append([]plugin.NamespaceElement{}, ns...))
+							nsClone := make([]plugin.NamespaceElement, len(ns))
+							copy(nsClone, ns)
+							nsClone[4].Value = strconv.Itoa(proc.Pid)
+							newMetric := plugin.Metric{
+								Namespace:   nsClone,
+								Data:        val,
+								Timestamp:   timestamp,
+								Unit:        metricNames[procMet].unit,
+								Description: metricNames[procMet].description,
+							}
+							metrics = append(metrics, newMetric)
 
-		if isDynamic && len(ns) == 5 {
-			reqProcName := ns[3].Value
-			metricName := ns[4].Value
-			if reqProcName == "*" {
-				// ns[3] is wildcard for all processes
-				for procName, accStats := range accumulated {
-					key := metricKey{Proc: procName, Stat: metricName}
-					if _, ok := duplicatedStats[key]; ok {
-						continue
-					}
-					duplicatedStats[key] = struct{}{}
-
-					if val, ok := accStats[metricName]; ok {
-						// change dynamic namespace element value (= "*") to current process name
-						// whole namespace stays dynamic (ns[3].Name != "")
-						nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
-						nuns[3] = fillNsElement(&nuns[3], procName)
-						metric := plugin.MetricType{
-							Namespace_:   nuns,
-							Data_:        val,
-							Timestamp_:   time.Now(),
-							Unit_:        metricNames[metricName].unit,
-							Description_: metricNames[metricName].description,
 						}
-						metrics = append(metrics, metric)
-					} else {
-						return nil, serror.New(fmt.Errorf("Stat name {%s} not found!", metricName))
-					}
+					case "name":
+						if procMet == ns[6].Value {
+							//nuns := plugin.Namespace(append([]plugin.NamespaceElement{}, ns...))
+							nsClone := make([]plugin.NamespaceElement, len(ns))
+							copy(nsClone, ns)
+							nsClone[4].Value = removeUnwantedChars(proc.Cmd)
+							nsClone[5].Value = strconv.Itoa(proc.Pid)
+							newMetric := plugin.Metric{
+								Namespace:   nsClone,
+								Data:        val,
+								Timestamp:   timestamp,
+								Unit:        metricNames[procMet].unit,
+								Description: metricNames[procMet].description,
+							}
+							metrics = append(metrics, newMetric)
 
-				}
-			} else { // if reqProcName == "*"
-				key := metricKey{Proc: reqProcName, Stat: metricName}
-				if _, ok := duplicatedStats[key]; ok {
-					continue
-				}
-				duplicatedStats[key] = struct{}{}
-
-				metricName := ns[4].Value
-				accStats, found := accumulated[reqProcName]
-				if !found {
-					return nil, serror.New(fmt.Errorf("Process name {%s} not found!", reqProcName))
-				}
-				if val, ok := accStats[metricName]; ok {
-					// change dynamic namespace element value (= "*") to current process name
-					// whole namespace stays dynamic (ns[3].Name != "")
-					nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
-					nuns[3] = fillNsElement(&nuns[3], reqProcName)
-					metric := plugin.MetricType{
-						Namespace_:   nuns,
-						Data_:        val,
-						Timestamp_:   time.Now(),
-						Unit_:        metricNames[metricName].unit,
-						Description_: metricNames[metricName].description,
+						}
 					}
-					metrics = append(metrics, metric)
-				} else {
-					return nil, serror.New(fmt.Errorf("Stat name {%s} not found!", metricName))
 				}
 			}
-
-		} else if len(ns) == 4 && str.Contains(States.Values(), ns[3].Value) {
-			state := ns[3].Value
+		} else if contains(States.Values(), ns[4].Value) {
+			// ns[3] contains process state
+			state := ns[4].Value
 			if val, ok := stateCount[state]; ok {
-				metric := plugin.MetricType{
-					Namespace_:   ns,
-					Data_:        val,
-					Timestamp_:   time.Now(),
-					Description_: fmt.Sprintf("Number of processes in %s state", state),
-					Unit_:        "",
+				metric := plugin.Metric{
+					Namespace:   ns,
+					Data:        val,
+					Timestamp:   timestamp,
+					Description: fmt.Sprintf("Number of processes in %s state", state),
+					Unit:        "",
 				}
 				metrics = append(metrics, metric)
-			} else {
-				return nil, serror.New(fmt.Errorf("Unknown namespace."))
 			}
-
-		} else {
-			return nil, serror.New(fmt.Errorf("Unknown namespace."))
 		}
 	}
 
 	return metrics, nil
 }
 
-func setProcMetrics(instances []Proc) map[string]uint64 {
-	procMetrics := map[string]uint64{}
+func setProcMetrics(proc Proc) map[string]interface{} {
+
+	procMetrics := map[string]interface{}{}
+
 	for metricName, _ := range metricNames {
 		procMetrics[metricName] = 0
 	}
-	procMetrics["ps_count"] = uint64(len(instances))
+	vm, _ := strconv.ParseUint(string(proc.Stat[22]), 10, 64)
+	procMetrics["ps_vm"] = vm
 
-	for _, instance := range instances {
-		vm, _ := strconv.ParseUint(string(instance.Stat[22]), 10, 64)
-		procMetrics["ps_vm"] += vm
+	rss, _ := strconv.ParseUint(string(proc.Stat[23]), 10, 64)
+	procMetrics["ps_rss"] = rss
 
-		rss, _ := strconv.ParseUint(string(instance.Stat[23]), 10, 64)
-		procMetrics["ps_rss"] += rss
+	procMetrics["ps_data"] = proc.VmData
+	procMetrics["ps_code"] = proc.VmCode
 
-		procMetrics["ps_data"] += instance.VmData
-		procMetrics["ps_code"] += instance.VmCode
+	stack1, _ := strconv.ParseUint(string(proc.Stat[27]), 10, 64)
+	stack2, _ := strconv.ParseUint(string(proc.Stat[28]), 10, 64)
 
-		stack1, _ := strconv.ParseUint(string(instance.Stat[27]), 10, 64)
-		stack2, _ := strconv.ParseUint(string(instance.Stat[28]), 10, 64)
-
-		// to avoid overload
-		if stack1 > stack2 {
-			procMetrics["ps_stacksize"] += stack1 - stack2
-		} else {
-			procMetrics["ps_stacksize"] += stack2 - stack1
-		}
-
-		utime, _ := strconv.ParseUint(string(instance.Stat[13]), 10, 64)
-		procMetrics["ps_cputime_user"] += utime
-
-		stime, _ := strconv.ParseUint(string(instance.Stat[14]), 10, 64)
-		procMetrics["ps_cputime_system"] += stime
-
-		minflt, _ := strconv.ParseUint(string(instance.Stat[9]), 10, 64)
-		procMetrics["ps_pagefaults_min"] += minflt
-
-		majflt, _ := strconv.ParseUint(string(instance.Stat[11]), 10, 64)
-		procMetrics["ps_pagefaults_maj"] += majflt
-
-		procMetrics["ps_disk_octets_rchar"] += instance.Io["rchar"]
-		procMetrics["ps_disk_octets_wchar"] += instance.Io["wchar"]
-		procMetrics["ps_disk_ops_syscr"] += instance.Io["syscr"]
-		procMetrics["ps_disk_ops_syscw"] += instance.Io["syscw"]
+	// to avoid overload
+	if stack1 > stack2 {
+		procMetrics["ps_stacksize"] = stack1 - stack2
+	} else {
+		procMetrics["ps_stacksize"] = stack2 - stack1
 	}
 
-	return procMetrics
-}
+	utime, _ := strconv.ParseUint(string(proc.Stat[13]), 10, 64)
+	procMetrics["ps_cputime_user"] = utime
 
-func fillNsElement(element *core.NamespaceElement, value string) core.NamespaceElement {
-	return core.NamespaceElement{Value: value, Description: element.Description, Name: element.Name}
+	stime, _ := strconv.ParseUint(string(proc.Stat[14]), 10, 64)
+	procMetrics["ps_cputime_system"] = stime
+
+	minflt, _ := strconv.ParseUint(string(proc.Stat[9]), 10, 64)
+	procMetrics["ps_pagefaults_min"] = minflt
+
+	majflt, _ := strconv.ParseUint(string(proc.Stat[11]), 10, 64)
+	procMetrics["ps_pagefaults_maj"] = majflt
+
+	procMetrics["ps_disk_octets_rchar"] = proc.Io["rchar"]
+	procMetrics["ps_disk_octets_wchar"] = proc.Io["wchar"]
+	procMetrics["ps_disk_ops_syscr"] = proc.Io["syscr"]
+	procMetrics["ps_disk_ops_syscw"] = proc.Io["syscw"]
+	procMetrics["ps_cmd_line"] = proc.CmdLine
+	procMetrics["ps_cmd"] = proc.Cmd
+	//	}
+
+	return procMetrics
 }
 
 // procPlugin holds host name and reference to metricCollector which has method of GetStats()
@@ -356,4 +322,28 @@ type procPlugin struct {
 type label struct {
 	description string
 	unit        string
+}
+
+func contains(s []string, v string) bool {
+	for _, a := range s {
+		if a == v {
+			return true
+		}
+	}
+	return false
+}
+
+func removeUnwantedChars(str string) string {
+	unwanteds := []unwanted{
+		{"[", ""},
+		{"]", ""},
+		{"(", ""},
+		{")", ""},
+		{"/", "."},
+		{"\\", ""},
+	}
+	for _, unw := range unwanteds {
+		str = strings.Replace(str, unw.char, unw.repl, -1)
+	}
+	return str
 }

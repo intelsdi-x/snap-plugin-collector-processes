@@ -57,6 +57,7 @@ type Proc struct {
 	Pid     int
 	State   string
 	CmdLine string
+	Cmd     string
 	Stat    []string
 	Io      map[string]uint64
 	VmData  uint64
@@ -64,13 +65,13 @@ type Proc struct {
 }
 
 // GetStats returns processes statistics
-func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, error) {
+func (psc *procStatsCollector) GetStats(procPath string, isp bool) ([]Proc, error) {
 	files, err := ioutil.ReadDir(procPath)
 	//log.SetOutput(os.Stderr)
 	if err != nil {
 		return nil, err
 	}
-	procs := map[string][]Proc{}
+	procs := make([]Proc, 0)
 	for _, file := range files {
 
 		// process only PID sub dirs
@@ -131,21 +132,32 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024
 			}
 			// TODO: gather task status data /proc/<pid>/task
-			pc := Proc{
-				Pid:     pid,
-				State:   strings.Fields(string(procStat))[2],
-				Stat:    strings.Fields(string(procStat)),
-				CmdLine: strings.Replace(string(procCmdLine), "\x00", " ", -1),
-				Io:      procIo,
-				VmData:  vmData,
-				VmCode:  vmCode,
+			cmdLine := string(procCmdLine)
+			//			cmdPath := strings.Split(strings.Split(cmdLine, "\x00")[0], "/")
+			cmdPath := strings.Split(cmdLine, "\x00")[0]
+			var cmd string
+			if strings.Contains(cmdPath, "[") && strings.Contains(cmdPath, "]") {
+				cmd = strings.Split(cmdPath, " ")[0]
+			} else {
+				s := strings.Split(cmdPath, "/")
+				cmd = s[len(s)-1]
 			}
-			// tmpName begins and end with brackets, removing them
-			tmpName := strings.Fields(string(procStat))[1]
-			//procName := tmpName[1 : len(tmpName)-1]
-			procName := removeUnwantedChars(tmpName)
-			instances, _ := procs[procName]
-			procs[procName] = append(instances, pc)
+			if isp || len(cmd) > 0 {
+				pc := Proc{
+					Pid:     pid,
+					State:   strings.Fields(string(procStat))[2],
+					Stat:    strings.Fields(string(procStat)),
+					CmdLine: cmdLine,
+					Cmd:     cmd,
+					Io:      procIo,
+					VmData:  vmData,
+					VmCode:  vmCode,
+				}
+				if len(pc.Cmd) == 0 {
+					pc.Cmd = strings.Fields(string(procStat))[1]
+				}
+				procs = append(procs, pc)
+			}
 		}
 	}
 	return procs, nil
@@ -185,23 +197,8 @@ func read2Map(fileName string) (map[string]uint64, error) {
 	return stats, nil
 }
 
-func removeUnwantedChars(str string) string {
-	unwanteds := []unwanted{
-		{"[", ""},
-		{"]", ""},
-		{"(", ""},
-		{")", ""},
-		{"/", "."},
-		{"\\", ""},
-	}
-	for _, unw := range unwanteds {
-		str = strings.Replace(str, unw.char, unw.repl, -1)
-	}
-	return str
-}
-
 type metricCollector interface {
-	GetStats(procPath string) (map[string][]Proc, error)
+	GetStats(procPath string, isp bool) ([]Proc, error)
 }
 
 type unwanted struct {
