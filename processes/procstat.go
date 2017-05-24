@@ -20,6 +20,7 @@ limitations under the License.
 package processes
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -64,13 +65,25 @@ type Proc struct {
 }
 
 // GetStats returns processes statistics
-func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, error) {
+func (psc *procStatsCollector) GetStats(procPath string) (map[string]map[int]Proc, error) {
+	// Procfs structure used in GetStats
+	// /proc
+	// |_ /[pid] (for example 922)
+	//    |_ cmdline (process command like, for example /usr/local/bin/snapteld -t 0 -l 1)
+	//    |_ io (I/O information about the process)
+	//    |_ stat (Status information about the process)
+	//    |_ status (Provides much of the information in /proc/[pid]/stat and
+	//               /proc/[pid]/statm in a format that's easier for humans to
+	//               parse)
+	//
+	// For more details, check here:
+	// http://man7.org/linux/man-pages/man5/proc.5.html
+
 	files, err := ioutil.ReadDir(procPath)
-	//log.SetOutput(os.Stderr)
 	if err != nil {
 		return nil, err
 	}
-	procs := map[string][]Proc{}
+	procs := map[string]map[int]Proc{}
 	for _, file := range files {
 
 		// process only PID sub dirs
@@ -130,22 +143,40 @@ func (psc *procStatsCollector) GetStats(procPath string) (map[string][]Proc, err
 				vmData = pStatus["VmData"] * 1024
 				vmCode = (pStatus["VmExe"] + pStatus["VmLib"]) * 1024
 			}
+
+			procStatFields := strings.Fields(string(procStat))
+			if len(procStatFields) < 3 {
+				return nil, fmt.Errorf("Cannot retrieve process state")
+			}
+			procState := procStatFields[2]
+
 			// TODO: gather task status data /proc/<pid>/task
 			pc := Proc{
 				Pid:     pid,
-				State:   strings.Fields(string(procStat))[2],
-				Stat:    strings.Fields(string(procStat)),
+				State:   procState,
+				Stat:    procStatFields,
 				CmdLine: strings.Replace(string(procCmdLine), "\x00", " ", -1),
 				Io:      procIo,
 				VmData:  vmData,
 				VmCode:  vmCode,
 			}
-			// tmpName begins and end with brackets, removing them
-			tmpName := strings.Fields(string(procStat))[1]
-			//procName := tmpName[1 : len(tmpName)-1]
-			procName := removeUnwantedChars(tmpName)
-			instances, _ := procs[procName]
-			procs[procName] = append(instances, pc)
+			// procName is process name extracted from command line path
+			procPath := strings.Split(pc.CmdLine, " ")[0]
+			procName := ""
+			if procPath != "" {
+				procName = filepath.Base(procPath)
+			} else {
+				// Kernel processes - no command line
+				procName = removeUnwantedChars(procStatFields[1])
+			}
+			if procName == "" {
+				return nil, fmt.Errorf("Cannot retrieve process name")
+			}
+
+			if procs[procName] == nil {
+				procs[procName] = map[int]Proc{}
+			}
+			procs[procName][pid] = pc
 		}
 	}
 	return procs, nil
@@ -201,7 +232,7 @@ func removeUnwantedChars(str string) string {
 }
 
 type metricCollector interface {
-	GetStats(procPath string) (map[string][]Proc, error)
+	GetStats(procPath string) (map[string]map[int]Proc, error)
 }
 
 type unwanted struct {

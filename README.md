@@ -71,32 +71,47 @@ $ snaptel plugin load snap-plugin-publisher-file
 ```
 See available metrics for your system:
 ```
-$ snaptel metric list
-NAMESPACE                                              VERSIONS
-/intel/procfs/processes/running                        7
-/intel/procfs/processes/sleeping                       7
-/intel/procfs/processes/waiting                        7
-/intel/procfs/processes/zombie                         7
-/intel/procfs/processes/stopped                        7
-/intel/procfs/processes/tracing                        7
-/intel/procfs/processes/dead                           7
-/intel/procfs/processes/wakekill                       7
-/intel/procfs/processes/waking                         7
-/intel/procfs/processes/parked                         7
-/intel/procfs/processes/*/ps_vm                        7
-/intel/procfs/processes/*/ps_rss                       7
-/intel/procfs/processes/*/ps_data                      7
-/intel/procfs/processes/*/ps_code                      7
-/intel/procfs/processes/*/ps_stacksize                 7
-/intel/procfs/processes/*/ps_cputime_user              7
-/intel/procfs/processes/*/ps_cputime_system            7
-/intel/procfs/processes/*/ps_pagefaults_min            7
-/intel/procfs/processes/*/ps_pagefaults_maj            7
-/intel/procfs/processes/*/ps_disk_ops_syscr            7
-/intel/procfs/processes/*/ps_disk_ops_syscw            7
-/intel/procfs/processes/*/ps_disk_octets_rchar         7
-/intel/procfs/processes/*/ps_disk_octets_wchar         7
-/intel/procfs/processes/*/ps_count                     7
+$ snaptel metric list --verbose 
+NAMESPACE                                                                            VERSION    UNIT    DESCRIPTION
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_cmdline              8                  Process command line with arguments
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_code                 8          B       Size of text segment
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_cputime_system       8          Jiff    Amount of time that this process has been scheduled in kernel mode
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_cputime_user         8          Jiff    Amount of time that this process has been scheduled in user mode
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_data                 8          B       Size of data segments
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_disk_octets_rchar    8          B       The number of bytes which this task has caused to be read from storage
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_disk_octets_wchar    8          B       The number of bytes which this task has caused, or shall cause to be written to disk
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_disk_ops_syscr       8                  Attempt to count the number of read I/O operations
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_disk_ops_syscw       8                  Attempt to count the number of write I/O operations
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_pagefaults_maj       8                  The number of major faults the process has made
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_pagefaults_min       8                  The number of minor faults the process has made
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_rss                  8                  Resident Set Size: number of pages the process has in real memory
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_stacksize            8          B       Stack size
+/intel/procfs/processes/process/[process_name]/[process_pid]/ps_vm                   8          B       Virtual memory size in bytes
+/intel/procfs/processes/process/[process_name]/all/ps_code                           8          B       Size of text segment
+/intel/procfs/processes/process/[process_name]/all/ps_cputime_system                 8          Jiff    Amount of time that this process has been scheduled in kernel mode
+/intel/procfs/processes/process/[process_name]/all/ps_cputime_user                   8          Jiff    Amount of time that this process has been scheduled in user mode
+/intel/procfs/processes/process/[process_name]/all/ps_data                           8          B       Size of data segments
+/intel/procfs/processes/process/[process_name]/all/ps_disk_octets_rchar              8          B       The number of bytes which this task has caused to be read from storage
+/intel/procfs/processes/process/[process_name]/all/ps_disk_octets_wchar              8          B       The number of bytes which this task has caused, or shall cause to be written to disk
+/intel/procfs/processes/process/[process_name]/all/ps_disk_ops_syscr                 8                  Attempt to count the number of read I/O operations
+/intel/procfs/processes/process/[process_name]/all/ps_disk_ops_syscw                 8                  Attempt to count the number of write I/O operations
+/intel/procfs/processes/process/[process_name]/all/ps_pagefaults_maj                 8                  The number of major faults the process has made
+/intel/procfs/processes/process/[process_name]/all/ps_pagefaults_min                 8                  The number of minor faults the process has made
+/intel/procfs/processes/process/[process_name]/all/ps_rss                            8                  Resident Set Size: number of pages the process has in real memory
+/intel/procfs/processes/process/[process_name]/all/ps_stacksize                      8          B       Stack size
+/intel/procfs/processes/process/[process_name]/all/ps_vm                             8          B       Virtual memory size in bytes
+/intel/procfs/processes/process/[process_name]/ps_count                              8                  Number of process instances
+/intel/procfs/processes/state/dead                                                   8                  Number of processes with 'dead' status
+/intel/procfs/processes/state/parked                                                 8                  Number of processes with 'parked' status
+/intel/procfs/processes/state/running                                                8                  Number of processes with 'running' status
+/intel/procfs/processes/state/sleeping                                               8                  Number of processes with 'sleeping' status
+/intel/procfs/processes/state/stopped                                                8                  Number of processes with 'stopped' status
+/intel/procfs/processes/state/tracing                                                8                  Number of processes with 'tracing' status
+/intel/procfs/processes/state/waiting                                                8                  Number of processes with 'waiting' status
+/intel/procfs/processes/state/wakekill                                               8                  Number of processes with 'wakekill' status
+/intel/procfs/processes/state/waking                                                 8                  Number of processes with 'waking' status
+/intel/procfs/processes/state/zombie                                                 8                  Number of processes with 'zombie' status
+
 ```
 
 
