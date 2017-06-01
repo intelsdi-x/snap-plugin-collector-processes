@@ -138,7 +138,7 @@ func TestGetStats(t *testing.T) {
 
 			for procName, instances := range results {
 
-				So(procName, ShouldResemble, "mockProcName")
+				So(procName, ShouldResemble, "systemd-hostnamed^@")
 
 				for _, instance := range instances {
 

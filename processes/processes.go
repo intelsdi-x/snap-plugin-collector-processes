@@ -23,85 +23,143 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/serror"
-
-	"github.com/intelsdi-x/snap-plugin-utilities/config"
-	"github.com/intelsdi-x/snap-plugin-utilities/str"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 )
 
 const (
-	//plugin name
-	pluginName = "processes"
+	// PluginName is name of plugin
+	PluginName = "processes"
+	// PluginVersion is version of plugin
+	PluginVersion = 8
+
 	//plugin vendor
 	pluginVendor = "intel"
 	// fs is proc filesystem
 	fs = "procfs"
-	//version of plugin
-	version = 7
+
+	// Namespace offsets
+	nsCategory  = 3
+	nsProcName  = 4 // /intel/procfs/processes/process/->ProcName<-
+	nsStateName = 4 // /intel/procfs/processes/states/->StateName<-
+	nsPid       = 5 // /intel/procfs/processes/process/ProcName/->Pid<-
+	nsPsCount   = 5 // /intel/procfs/processes/process/ProcName/->ps_count<-
+	nsPidMetric = 6 // /intel/procfs/processes/process/ProcName/Pid/->metric<-
 )
 
 var (
 	metricNames = map[string]label{
 		"ps_vm": label{
+			category:    "pid",
 			description: "Virtual memory size in bytes",
 			unit:        "B",
 		},
 		"ps_rss": label{
+			category:    "pid",
 			description: "Resident Set Size: number of pages the process has in real memory",
-			unit:        "",
 		},
 		"ps_data": label{
+			category:    "pid",
 			description: "Size of data segments",
 			unit:        "B",
 		},
 		"ps_code": label{
+			category:    "pid",
 			description: "Size of text segment",
 			unit:        "B",
 		},
 		"ps_stacksize": label{
+			category:    "pid",
 			description: "Stack size",
 			unit:        "B",
 		},
 		"ps_cputime_user": label{
+			category:    "pid",
 			description: "Amount of time that this process has been scheduled in user mode",
 			unit:        "Jiff",
 		},
 		"ps_cputime_system": label{
+			category:    "pid",
 			description: "Amount of time that this process has been scheduled in kernel mode",
 			unit:        "Jiff",
 		},
 		"ps_pagefaults_min": label{
+			category:    "pid",
 			description: "The number of minor faults the process has made",
-			unit:        "",
 		},
 		"ps_pagefaults_maj": label{
+			category:    "pid",
 			description: "The number of major faults the process has made",
-			unit:        "",
 		},
 		"ps_disk_ops_syscr": label{
+			category:    "pid",
 			description: "Attempt to count the number of read I/O operations",
-			unit:        "",
 		},
 		"ps_disk_ops_syscw": label{
+			category:    "pid",
 			description: "Attempt to count the number of write I/O operations",
-			unit:        "",
 		},
 		"ps_disk_octets_rchar": label{
+			category:    "pid",
 			description: "The number of bytes which this task has caused to be read from storage",
 			unit:        "B",
 		},
 		"ps_disk_octets_wchar": label{
+			category:    "pid",
 			description: "The number of bytes which this task has caused, or shall cause to be written to disk",
 			unit:        "B",
 		},
+		"ps_cmdline": label{
+			category:    "pid",
+			description: "Process command line with arguments",
+		},
+
 		"ps_count": label{
+			category:    "process",
 			description: "Number of process instances",
-			unit:        "",
+		},
+
+		"running": label{
+			category:    "state",
+			description: "Number of processes with 'running' status",
+		},
+		"sleeping": label{
+			category:    "state",
+			description: "Number of processes with 'sleeping' status",
+		},
+		"waiting": label{
+			category:    "state",
+			description: "Number of processes with 'waiting' status",
+		},
+		"zombie": label{
+			category:    "state",
+			description: "Number of processes with 'zombie' status",
+		},
+		"stopped": label{
+			category:    "state",
+			description: "Number of processes with 'stopped' status",
+		},
+		"tracing": label{
+			category:    "state",
+			description: "Number of processes with 'tracing' status",
+		},
+		"dead": label{
+			category:    "state",
+			description: "Number of processes with 'dead' status",
+		},
+		"wakekill": label{
+			category:    "state",
+			description: "Number of processes with 'wakekill' status",
+		},
+		"waking": label{
+			category:    "state",
+			description: "Number of processes with 'waking' status",
+		},
+		"parked": label{
+			category:    "state",
+			description: "Number of processes with 'parked' status",
 		},
 	}
 )
@@ -117,53 +175,70 @@ func New() *procPlugin {
 }
 
 // Meta returns plugin meta data
-func Meta() *plugin.PluginMeta {
-	return plugin.NewPluginMeta(
-		pluginName,
-		version,
-		plugin.CollectorPluginType,
-		[]string{},
-		[]string{plugin.SnapGOBContentType},
+func Meta() []plugin.MetaOpt {
+	return []plugin.MetaOpt{
 		plugin.ConcurrencyCount(1),
-	)
+	}
 }
 
 // GetMetricTypes returns list of available metrics
-func (procPlg *procPlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
-	metricTypes := []plugin.MetricType{}
+func (procPlg *procPlugin) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric, error) {
+	metricTypes := []plugin.Metric{}
 	// build metric types from process metric names
 	for metricName, label := range metricNames {
-		metricType := plugin.MetricType{
-			Namespace_: core.NewNamespace(pluginVendor, fs, pluginName).
-				AddDynamicElement("process_name", "name of the running process").
-				AddStaticElements(metricName),
-			Config_:      cfg.ConfigDataNode,
-			Description_: label.description,
-			Unit_:        label.unit,
+		switch label.category {
+		case "pid":
+			metricTypes = append(metricTypes, plugin.Metric{
+				Namespace: plugin.NewNamespace(pluginVendor, fs, PluginName, "process").
+					AddDynamicElement("process_name", "name of the process").
+					AddDynamicElement("process_pid", "identifier of the process").
+					AddStaticElements(metricName),
+				Config:      cfg,
+				Description: label.description,
+				Unit:        label.unit,
+			})
+
+			// Aggregated metrics
+			if metricName != "ps_cmdline" {
+				metricTypes = append(metricTypes,
+					plugin.Metric{
+						Namespace: plugin.NewNamespace(pluginVendor, fs, PluginName, "process").
+							AddDynamicElement("process_name", "name of the process").
+							AddStaticElement("all").
+							AddStaticElements(metricName),
+						Config:      cfg,
+						Description: label.description,
+						Unit:        label.unit,
+					})
+			}
+		case "state":
+			metricTypes = append(metricTypes, plugin.Metric{
+				Namespace:   plugin.NewNamespace(pluginVendor, fs, PluginName, "state", metricName),
+				Config:      cfg,
+				Description: label.description,
+				Unit:        label.unit,
+			})
+		case "process":
+			metricTypes = append(metricTypes,
+				plugin.Metric{
+					Namespace: plugin.NewNamespace(pluginVendor, fs, PluginName, "process").
+						AddDynamicElement("process_name", "name of the process").
+						AddStaticElement(metricName),
+					Config:      cfg,
+					Description: label.description,
+					Unit:        label.unit,
+				})
 		}
-		metricTypes = append(metricTypes, metricType)
 	}
-	// build metric types from process states
-	for _, state := range States.Values() {
-		metricType := plugin.MetricType{
-			Namespace_:   core.NewNamespace(pluginVendor, fs, pluginName, state),
-			Config_:      cfg.ConfigDataNode,
-			Description_: fmt.Sprintf("Number of processes in %s state", state),
-			Unit_:        "",
-		}
-		metricTypes = append(metricTypes, metricType)
-	}
+
 	return metricTypes, nil
 }
 
 // GetConfigPolicy returns config policy
-func (procPlg *procPlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	cp := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
-	node := cpolicy.NewPolicyNode()
-	node.Add(rule)
-	cp.Add([]string{pluginVendor, fs, pluginName}, node)
-	return cp, nil
+func (procPlg *procPlugin) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	policy := plugin.NewConfigPolicy()
+	policy.AddNewStringRule([]string{pluginVendor, fs, PluginName}, "proc_path", false, plugin.SetDefaultString("/proc"))
+	return *policy, nil
 }
 
 // helper structure used to avoid duplicate metrics
@@ -172,11 +247,11 @@ type metricKey struct {
 }
 
 // CollectMetrics retrieves values for given metrics types
-func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
-	metrics := []plugin.MetricType{}
-	stateCount := map[string]int{}
+func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.Metric) ([]plugin.Metric, error) {
+	metrics := []plugin.Metric{}
+	stateCount := map[string]uint64{}
 
-	procPath, err := config.GetConfigItem(metricTypes[0], "proc_path")
+	procPath, err := metricTypes[0].Config.GetString("proc_path")
 	if err != nil {
 		return nil, err
 	}
@@ -186,165 +261,203 @@ func (procPlg *procPlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]pl
 		stateCount[state] = 0
 	}
 	// get all proc stats
-	stats, err := procPlg.mc.GetStats(procPath.(string))
+	stats, err := procPlg.mc.GetStats(procPath)
 	if err != nil {
-		return nil, serror.New(err)
+		return nil, err
 	}
 	// calculate number of processes in each state
-	for _, instances := range stats {
-		for _, instance := range instances {
-			stateName := States[instance.State]
-			stateCount[stateName]++
+	for _, process := range stats {
+		for _, instance := range process {
+			if stateName, ok := States[instance.State]; ok {
+				stateCount[stateName]++
+			} else {
+				return nil, fmt.Errorf("Cannot find state %s is state map", stateName)
+			}
 		}
 	}
 
-	// accumulate stats
-	accumulated := map[string]map[string]uint64{}
-	for procName, instances := range stats {
-		acc := setProcMetrics(instances)
-		accumulated[procName] = acc
-	}
-
-	duplicatedStats := map[metricKey]struct{}{}
-
 	// calculate metrics
+	aggregated := map[string]map[string]uint64{}
+	processCount := map[string]uint64{}
 	for _, metricType := range metricTypes {
-		ns := metricType.Namespace()
-		isDynamic, _ := ns.IsDynamic()
+		ns := metricType.Namespace
+		if len(ns) == 7 && ns[nsCategory].Value == "process" { // process metrics
+			reqProcName := ns[nsProcName].Value
+			reqProcPID := ns[nsPid].Value
+			metricName := ns[nsPidMetric].Value
 
-		if isDynamic && len(ns) == 5 {
-			reqProcName := ns[3].Value
-			metricName := ns[4].Value
-			if reqProcName == "*" {
-				// ns[3] is wildcard for all processes
-				for procName, accStats := range accumulated {
-					key := metricKey{Proc: procName, Stat: metricName}
-					if _, ok := duplicatedStats[key]; ok {
-						continue
-					}
-					duplicatedStats[key] = struct{}{}
+			// return per-process metrics and build aggregated data map
+			for processName, process := range stats {
+				aggregated[processName] = map[string]uint64{}
 
-					if val, ok := accStats[metricName]; ok {
-						// change dynamic namespace element value (= "*") to current process name
-						// whole namespace stays dynamic (ns[3].Name != "")
-						nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
-						nuns[3] = fillNsElement(&nuns[3], procName)
-						metric := plugin.MetricType{
-							Namespace_:   nuns,
-							Data_:        val,
-							Timestamp_:   time.Now(),
-							Unit_:        metricNames[metricName].unit,
-							Description_: metricNames[metricName].description,
+				for processPid, instance := range process {
+					if processName == reqProcName || reqProcName == "*" {
+						if strconv.Itoa(processPid) == reqProcPID || reqProcPID == "*" {
+							procMetrics, err := setProcMetrics(instance)
+							if err != nil {
+								return nil, fmt.Errorf("Error setting metric data: %v", err)
+							}
+							nuns := append([]plugin.NamespaceElement{}, ns...)
+							nuns[nsProcName] = fillNsElement(&nuns[nsProcName], processName)
+							nuns[nsPid] = fillNsElement(&nuns[nsPid], strconv.Itoa(processPid))
+
+							metric := plugin.Metric{
+								Namespace:   nuns,
+								Data:        procMetrics[metricName],
+								Timestamp:   time.Now(),
+								Unit:        metricNames[metricName].unit,
+								Description: metricNames[metricName].description,
+							}
+							metrics = append(metrics, metric)
 						}
-						metrics = append(metrics, metric)
-					} else {
-						return nil, serror.New(fmt.Errorf("Stat name {%s} not found!", metricName))
-					}
 
-				}
-			} else { // if reqProcName == "*"
-				key := metricKey{Proc: reqProcName, Stat: metricName}
-				if _, ok := duplicatedStats[key]; ok {
-					continue
-				}
-				duplicatedStats[key] = struct{}{}
-
-				metricName := ns[4].Value
-				accStats, found := accumulated[reqProcName]
-				if !found {
-					return nil, serror.New(fmt.Errorf("Process name {%s} not found!", reqProcName))
-				}
-				if val, ok := accStats[metricName]; ok {
-					// change dynamic namespace element value (= "*") to current process name
-					// whole namespace stays dynamic (ns[3].Name != "")
-					nuns := core.Namespace(append([]core.NamespaceElement{}, ns...))
-					nuns[3] = fillNsElement(&nuns[3], reqProcName)
-					metric := plugin.MetricType{
-						Namespace_:   nuns,
-						Data_:        val,
-						Timestamp_:   time.Now(),
-						Unit_:        metricNames[metricName].unit,
-						Description_: metricNames[metricName].description,
+						if reqProcPID == "all" {
+							procMetrics, err := setProcMetrics(instance)
+							if err != nil {
+								return nil, fmt.Errorf("Error setting metric data: %v", err)
+							}
+							for procMetricName, val := range procMetrics {
+								if valInt, ok := val.(uint64); ok {
+									aggregated[processName][procMetricName] += valInt
+								}
+							}
+						}
 					}
-					metrics = append(metrics, metric)
-				} else {
-					return nil, serror.New(fmt.Errorf("Stat name {%s} not found!", metricName))
 				}
 			}
 
-		} else if len(ns) == 4 && str.Contains(States.Values(), ns[3].Value) {
-			state := ns[3].Value
-			if val, ok := stateCount[state]; ok {
-				metric := plugin.MetricType{
-					Namespace_:   ns,
-					Data_:        val,
-					Timestamp_:   time.Now(),
-					Description_: fmt.Sprintf("Number of processes in %s state", state),
-					Unit_:        "",
+			// return aggregated metrics
+			if reqProcPID == "all" {
+				for aggrProcessName, aggrMetric := range aggregated {
+					for aggrMetricName, aggrData := range aggrMetric {
+						if reqProcName == aggrProcessName || reqProcName == "*" {
+							if metricName == aggrMetricName {
+								nuns := append([]plugin.NamespaceElement{}, ns...)
+								nuns[nsProcName] = fillNsElement(&nuns[nsProcName], aggrProcessName)
+								nuns[nsPid] = fillNsElement(&nuns[nsPid], "all")
+								metrics = append(metrics, prepareMetric(nuns, metricName, aggrData))
+							}
+						}
+					}
 				}
-				metrics = append(metrics, metric)
-			} else {
-				return nil, serror.New(fmt.Errorf("Unknown namespace."))
+			}
+		} else if len(ns) == 6 && ns[nsCategory].Value == "process" { // process count
+			reqProcName := ns[nsProcName].Value
+			metricName := ns[nsPsCount].Value
+
+			for processName, process := range stats {
+				processCount[processName] = uint64(len(process))
 			}
 
+			// return process count metric
+			for processName, processCount := range processCount {
+				if reqProcName == processName || reqProcName == "*" {
+					nuns := append([]plugin.NamespaceElement{}, ns...)
+					nuns[nsProcName] = fillNsElement(&nuns[nsProcName], processName)
+					nuns[nsPsCount] = fillNsElement(&nuns[nsPsCount], "ps_count")
+					metrics = append(metrics, prepareMetric(nuns, metricName, processCount))
+				}
+			}
+		} else if len(ns) == 5 && ns[nsCategory].Value == "state" { // globally aggregated process states
+			metricName := ns[nsStateName].Value
+
+			for stateName, val := range stateCount {
+				if metricName == stateName {
+					nuns := append([]plugin.NamespaceElement{}, ns...)
+					metrics = append(metrics, prepareMetric(nuns, metricName, val))
+				}
+			}
 		} else {
-			return nil, serror.New(fmt.Errorf("Unknown namespace."))
+			return nil, fmt.Errorf("Bad namespace: %s", strings.Join(ns.Strings(), "/"))
 		}
 	}
 
 	return metrics, nil
 }
 
-func setProcMetrics(instances []Proc) map[string]uint64 {
-	procMetrics := map[string]uint64{}
-	for metricName, _ := range metricNames {
-		procMetrics[metricName] = 0
-	}
-	procMetrics["ps_count"] = uint64(len(instances))
+func setProcMetrics(instance Proc) (map[string]interface{}, error) {
+	var procMetrics = make(map[string]interface{})
 
-	for _, instance := range instances {
-		vm, _ := strconv.ParseUint(string(instance.Stat[22]), 10, 64)
-		procMetrics["ps_vm"] += vm
-
-		rss, _ := strconv.ParseUint(string(instance.Stat[23]), 10, 64)
-		procMetrics["ps_rss"] += rss
-
-		procMetrics["ps_data"] += instance.VmData
-		procMetrics["ps_code"] += instance.VmCode
-
-		stack1, _ := strconv.ParseUint(string(instance.Stat[27]), 10, 64)
-		stack2, _ := strconv.ParseUint(string(instance.Stat[28]), 10, 64)
-
-		// to avoid overload
-		if stack1 > stack2 {
-			procMetrics["ps_stacksize"] += stack1 - stack2
-		} else {
-			procMetrics["ps_stacksize"] += stack2 - stack1
-		}
-
-		utime, _ := strconv.ParseUint(string(instance.Stat[13]), 10, 64)
-		procMetrics["ps_cputime_user"] += utime
-
-		stime, _ := strconv.ParseUint(string(instance.Stat[14]), 10, 64)
-		procMetrics["ps_cputime_system"] += stime
-
-		minflt, _ := strconv.ParseUint(string(instance.Stat[9]), 10, 64)
-		procMetrics["ps_pagefaults_min"] += minflt
-
-		majflt, _ := strconv.ParseUint(string(instance.Stat[11]), 10, 64)
-		procMetrics["ps_pagefaults_maj"] += majflt
-
-		procMetrics["ps_disk_octets_rchar"] += instance.Io["rchar"]
-		procMetrics["ps_disk_octets_wchar"] += instance.Io["wchar"]
-		procMetrics["ps_disk_ops_syscr"] += instance.Io["syscr"]
-		procMetrics["ps_disk_ops_syscw"] += instance.Io["syscw"]
+	if len(instance.Stat) < 29 {
+		return nil, fmt.Errorf("Process instance stat data not available or broken")
 	}
 
-	return procMetrics
+	vm, err := strconv.ParseUint(string(instance.Stat[22]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	procMetrics["ps_vm"] = vm
+
+	rss, err := strconv.ParseUint(string(instance.Stat[23]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	procMetrics["ps_rss"] = rss
+
+	procMetrics["ps_data"] = instance.VmData
+	procMetrics["ps_code"] = instance.VmCode
+	procMetrics["ps_cmdline"] = instance.CmdLine
+
+	stack1, err := strconv.ParseUint(string(instance.Stat[27]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	stack2, err := strconv.ParseUint(string(instance.Stat[28]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	// to avoid overload
+	if stack1 > stack2 {
+		procMetrics["ps_stacksize"] = stack1 - stack2
+	} else {
+		procMetrics["ps_stacksize"] = stack2 - stack1
+	}
+
+	utime, err := strconv.ParseUint(string(instance.Stat[13]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	procMetrics["ps_cputime_user"] = utime
+
+	stime, err := strconv.ParseUint(string(instance.Stat[14]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	procMetrics["ps_cputime_system"] = stime
+
+	minflt, err := strconv.ParseUint(string(instance.Stat[9]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	procMetrics["ps_pagefaults_min"] = minflt
+
+	majflt, err := strconv.ParseUint(string(instance.Stat[11]), 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	procMetrics["ps_pagefaults_maj"] = majflt
+
+	procMetrics["ps_disk_octets_rchar"] = instance.Io["rchar"]
+	procMetrics["ps_disk_octets_wchar"] = instance.Io["wchar"]
+	procMetrics["ps_disk_ops_syscr"] = instance.Io["syscr"]
+	procMetrics["ps_disk_ops_syscw"] = instance.Io["syscw"]
+
+	return procMetrics, nil
 }
 
-func fillNsElement(element *core.NamespaceElement, value string) core.NamespaceElement {
-	return core.NamespaceElement{Value: value, Description: element.Description, Name: element.Name}
+func fillNsElement(element *plugin.NamespaceElement, value string) plugin.NamespaceElement {
+	return plugin.NamespaceElement{Value: value, Description: element.Description, Name: element.Name}
+}
+
+func prepareMetric(ns []plugin.NamespaceElement, metricName string, data interface{}) plugin.Metric {
+	return plugin.Metric{
+		Namespace:   ns,
+		Data:        data,
+		Timestamp:   time.Now(),
+		Unit:        metricNames[metricName].unit,
+		Description: metricNames[metricName].description,
+	}
 }
 
 // procPlugin holds host name and reference to metricCollector which has method of GetStats()
@@ -356,4 +469,5 @@ type procPlugin struct {
 type label struct {
 	description string
 	unit        string
+	category    string
 }

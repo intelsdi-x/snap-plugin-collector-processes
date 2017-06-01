@@ -1,6 +1,11 @@
 package: github.com/intelsdi-x/snap-plugin-collector-processes
 import:
-- package: github.com/intelsdi-x/snap
-  version: ^1.0.0
-- package: github.com/intelsdi-x/snap-plugin-utilities
-  version: 3c37e3965f3fc2f24714779d3bae7ba7032b87a9
+import:
+- package: github.com/intelsdi-x/snap-plugin-lib-go
+  subpackages:
+  - v1
+testImport:
+- package: github.com/smartystreets/goconvey
+  subpackages:
+  - convey
+
