@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
