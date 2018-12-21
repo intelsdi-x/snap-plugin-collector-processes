@@ -1,3 +1,10 @@
+
+# DISCONTINUATION OF PROJECT 
+
+**This project will no longer be maintained by Intel.  Intel will not provide or guarantee development of or support for this project, including but not limited to, maintenance, bug fixes, new releases or updates.  Patches to this project are no longer accepted by Intel. If you have an ongoing need to use this project, are interested in independently developing it, or would like to maintain patches for the community, please create your own fork of the project.**
+
+
+
 # Snap plugin collector - processes
 
 This plugin for [Snap Telemetry Framework](http://github.com/intelsdi-x/snap) collects information about process states grouped by name. Additionally it provides metrics for each running process, also grouped by name.
